@@ -209,8 +209,8 @@ function StudentDashboard() {
   }
 
   const handleLogout = async () => {
-    const token=localStorage.getItem("token")
-    localStorage.removeItem("token")
+    const token=localStorage.getItem("accessToken")
+    localStorage.removeItem("accessToken")
     localStorage.removeItem("userRole")
 
     const response= await fetch("http://localhost:8081/logout", {

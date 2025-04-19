@@ -124,9 +124,9 @@ function TeacherDashboard() {
   }
   
   const handleLogout = async () => {
-    const token=localStorage.getItem("token")
+    const token=localStorage.getItem("accessToken")
     console.log(token)
-    localStorage.removeItem("token")
+    localStorage.removeItem("accessToken")
     localStorage.removeItem("userRole")
 
     const response= await fetch("http://localhost:8081/logout", {
