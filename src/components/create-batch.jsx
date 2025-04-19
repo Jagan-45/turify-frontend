@@ -22,7 +22,7 @@ const formSchema = z.object({
   students: z.string().optional(),
 })
 
-export function CreateBatch({ open, onOpenChange, onSubmit }) {
+export function CreateBatch({ open, onOpenChange}) {
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState(null)
   const navigate=useNavigate()

@@ -80,6 +80,9 @@ function TeacherDashboard() {
   const [openCreateBatch, setOpenCreateBatch] = useState(false)
   const [openCreateContest, setOpenCreateContest] = useState(false)
   const [openCreateTask, setOpenCreateTask] = useState(false)
+  const [batches, setBatches] = useState([]);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [openStudentDialog, setOpenStudentDialog] = useState(false);
 
   const navigate = useNavigate()
   const isValidToken = useValidToken()
@@ -96,14 +99,40 @@ function TeacherDashboard() {
   }
 
 
-  const handleCreateBatch = (batchData) => {
-    // Mock API call
-    console.log("Creating batch:", batchData)
-    useToast({
-      title: "Batch created",
-      description: `${batchData.batchName} has been created successfully.`,
-    })
-  }
+  useEffect(() => {
+    const fetchBatches = async () => {
+      const token = localStorage.getItem("accessToken");
+      console.log(token)
+      try {
+        const response = await fetch("http://localhost:8081/api/v0/batches", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          toast.error("Failed to fetch batches.");
+          return;
+        }
+
+        const data = await response.json();
+        const processedBatches = data.data.map((batch) => ({
+          name: batch["batch name"],
+          students: batch.students.length, 
+          studentList: batch.students, 
+        }));
+
+        setBatches(processedBatches);
+      } catch (error) {
+        console.error("Error fetching batches:", error);
+        toast.error("Failed to load batches.");
+      }
+    };
+
+    fetchBatches();
+  }, []);
+
 
   const handleCreateContest = (contestData) => {
     // Mock API call
@@ -247,12 +276,12 @@ function TeacherDashboard() {
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
               </TabsList>
 
-              {/* Batches Tab */}
-              <TabsContent value="batches" className="space-y-4">
+                {/* Batches Tab */}
+                <TabsContent value="batches" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mockBatches.map((batch) => (
+                  {batches.map((batch, index) => (
                     <motion.div
-                      key={batch.id}
+                      key={index}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
@@ -275,7 +304,7 @@ function TeacherDashboard() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit Batch
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewStudents(batch.studentList)}>
                                   <Users className="h-4 w-4 mr-2" />
                                   View Students
                                 </DropdownMenuItem>
@@ -289,16 +318,12 @@ function TeacherDashboard() {
                         </CardHeader>
                         <CardContent className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Year</span>
-                            <span className="font-medium">{batch.year}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Students</span>
                             <span className="font-medium">{batch.students}</span>
                           </div>
                         </CardContent>
                         <CardFooter>
-                          <Button variant="outline" className="w-full gap-2">
+                          <Button variant="outline" className="w-full gap-2" onClick={() => handleViewStudents(batch.studentList)}>
                             <Users className="h-4 w-4" />
                             View Students
                           </Button>
@@ -495,8 +520,29 @@ function TeacherDashboard() {
         </div>
       </main>
 
+       {/* Dialog for viewing students */}
+       {openStudentDialog && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-lg font-bold">Student List</h2>
+            <button className="absolute top-2 right-2" onClick={() => setOpenStudentDialog(false)}>
+              <span className="text-red-500">X</span>
+            </button>
+            <div className="mt-4">
+              {selectedStudents.map((student, index) => (
+                <div key={index} className="flex justify-between border-b py-2">
+                  <span>{student.username}</span>
+                  <span>{student.mailId}</span>
+                  <span>{student.rating}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dialogs */}
-      <CreateBatch open={openCreateBatch} onOpenChange={setOpenCreateBatch} onSubmit={handleCreateBatch} />
+      <CreateBatch open={openCreateBatch} onOpenChange={setOpenCreateBatch} />
       <CreateContest open={openCreateContest} onOpenChange={setOpenCreateContest} onSubmit={handleCreateContest} />
       <CreateTask open={openCreateTask} onOpenChange={setOpenCreateTask} onSubmit={handleCreateTask} />
     </div>
