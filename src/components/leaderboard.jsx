@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { ArrowLeft, ArrowUpDown, Code2, Download, Filter, Search, Trophy } from "lucide-react"
 
 import { Button } from "./ui/button"
@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { useToast } from "../components/hooks/use-toast"
+import  useValidToken  from "../components/hooks/useValidToken"
+import { useEffect } from "react"
 // Mock leaderboard data
 const mockLeaderboardData = [
   {
@@ -223,6 +225,12 @@ function Leaderboard() {
   const [selectedDepartments, setSelectedDepartments] = useState([])
   const [activeTab, setActiveTab] = useState("global")
   const { toast } = useToast()
+  const Navigate=useNavigate()
+  const isValidToken = useValidToken();
+      if (!isValidToken) {
+        Navigate("/login");
+      }
+
 
   // Get unique departments
   const departments = Array.from(new Set(mockLeaderboardData.map((user) => user.department)))
@@ -315,10 +323,10 @@ function Leaderboard() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/student-dashboard" className="flex items-center gap-2">
+           <button onClick={() => Navigate(-1)} className="flex items-center gap-2 cursor-pointer">
               <ArrowLeft className="h-4 w-4" />
-              <span className="font-medium">Back to Dashboard</span>
-            </Link>
+              <span className="font-medium cursor-pointer">Go Back</span>
+            </button>
             <div className="flex items-center gap-2 font-bold text-xl">
               <Code2 className="h-6 w-6" />
               <span>Turify</span>

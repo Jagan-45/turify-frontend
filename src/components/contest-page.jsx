@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useParams, Link, Navigate, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { ArrowLeft, CheckCircle, Clock, Code2, Trophy } from "lucide-react"
 
@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
 import { useToast } from "../components/hooks/use-toast"
+import useValidToken from "../components/hooks/useValidToken"
 
 // Mock contest data
 const mockContests = {
@@ -156,7 +157,19 @@ function ContestPage() {
   const [contest, setContest] = useState(null)
   const [activeTab, setActiveTab] = useState("problems")
   const [timeRemaining, setTimeRemaining] = useState("")
-  const { toast } = useToast()
+  const Navigate=useNavigate()
+  const isValidToken = useValidToken();
+      if (!isValidToken) {
+        Navigate("/login");
+      }
+      
+  const userRole = localStorage.getItem("userRole");
+      if (!userRole || userRole !== "ROLE_STUDENT") {
+        return <div className="flex justify-center items-center h-screen">Access Denied</div>;
+      }
+
+   
+
 
   useEffect(() => {
     // Simulate API call to fetch contest
@@ -177,7 +190,8 @@ function ContestPage() {
     const calculateTimeRemaining = () => {
       const now = new Date()
       const end = new Date(contest.endTime)
-      const diff = end.getTime() - now.getTime()
+      
+      const diff = end.getTime() - now.getTime();
 
       if (diff <= 0) {
         setTimeRemaining("Contest ended")
@@ -215,10 +229,10 @@ function ContestPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/student-dashboard" className="flex items-center gap-2">
+            <button onClick={() => Navigate(-1)} className="flex items-center gap-2 cursor-pointer">
               <ArrowLeft className="h-4 w-4" />
-              <span className="font-medium">Back to Dashboard</span>
-            </Link>
+              <span className="font-medium cursor-pointer">Go Back</span>
+            </button>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-2 font-bold text-xl">
               <Code2 className="h-6 w-6" />

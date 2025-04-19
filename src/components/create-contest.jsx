@@ -14,6 +14,9 @@ import { Input } from "./ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { Calendar } from "./ui/calendar"
+import { useNavigate } from "react-router-dom"
+import useValidToken from "../components/hooks/useValidToken"
+import { useEffect } from "react"
 
 const formSchema = z.object({
   title: z.string().min(3, {
@@ -38,6 +41,20 @@ const formSchema = z.object({
 
 export function CreateContest({ open, onOpenChange, onSubmit }) {
   const [isLoading, setIsLoading] = useState(false)
+
+   const navigate=useNavigate()
+   const  isValidToken  = useValidToken()
+  
+    useEffect(() => {
+      const userRole = localStorage.getItem("userRole")
+      if (!userRole || userRole !== "ROLE_STAFF" || !isValidToken) {
+          navigate("/login")
+        }
+      }, [isValidToken, navigate])
+    
+      if (!localStorage.getItem("userRole") || localStorage.getItem("userRole") !== "ROLE_STAFF") {
+      return <h1>Access Denied</h1>
+      }
 
   const form = useForm({
     resolver: zodResolver(formSchema),

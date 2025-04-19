@@ -11,9 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "./ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form"
 import { Input } from "./ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { ModeToggle } from "./mode-toggle"
-import { useToast } from "../components/hooks/use-toast"
+import { toast } from "react-toastify"
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -25,17 +24,10 @@ const formSchema = z.object({
   password: z.string().min(6, {
     message: "Password must be at least 6 characters.",
   }),
-  department: z.string({
-    required_error: "Please select a department.",
-  }),
-  year: z.string({
-    required_error: "Please select your year.",
-  }),
 })
 
 function SignupForm() {
   const navigate = useNavigate()
-  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm({
@@ -44,24 +36,43 @@ function SignupForm() {
       username: "",
       email: "",
       password: "",
-      department: "",
-      year: "",
     },
   })
 
-  function onSubmit(values) {
+  const onSubmit = async (values) => {
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-      navigate("/student-dashboard")
-
-      useToast({
-        title: "Account created",
-        description: "Your account has been created successfully.",
+    try {
+      const response = await fetch('http://localhost:8081/api/v0/auth/sign-up', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: values.username,
+          mailID: values.email,
+          password: values.password,
+        }),
       })
-    }, 1500)
+
+      const data = await response.json()
+      console.log(data)
+
+      if (response.ok) {
+        navigate('/verify-email')
+      } else if (response.status === 400) {
+        toast.error("An account with this email already exists. Please try logging in.")
+      } else if (response.status === 500) {
+        toast.error("The email address provided is invalid. Please try again.")
+      } else {
+        toast.error("An unexpected error occurred. Please try again later.")
+      }
+    } catch (error) {
+      console.error('Error during signup:', error)
+      toast.error("An unexpected error occurred. Please try again later.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -132,52 +143,6 @@ function SignupForm() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="department"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Department</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your department" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="computer-science">Computer Science</SelectItem>
-                          <SelectItem value="electrical">Electrical Engineering</SelectItem>
-                          <SelectItem value="mechanical">Mechanical Engineering</SelectItem>
-                          <SelectItem value="civil">Civil Engineering</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="year"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Year</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your year" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="1">1st Year</SelectItem>
-                          <SelectItem value="2">2nd Year</SelectItem>
-                          <SelectItem value="3">3rd Year</SelectItem>
-                          <SelectItem value="4">4th Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Creating account..." : "Sign up"}
                 </Button>
@@ -197,4 +162,3 @@ function SignupForm() {
 }
 
 export default SignupForm
-

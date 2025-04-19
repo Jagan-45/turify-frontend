@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState,useEffect } from "react"
 import { CalendarIcon, FileText } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -14,6 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { Calendar } from "./ui/calendar"
 import { Textarea } from "./ui/textarea"
+import dayjs, { Dayjs } from 'dayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import TextField from '@mui/material/TextField';
+import { useNavigate } from "react-router-dom"
+import useValidToken from "../components/hooks/useValidToken"
 
 const formSchema = z.object({
   batch: z.string({
@@ -33,6 +40,20 @@ const formSchema = z.object({
 
 export function CreateTask({ open, onOpenChange, onSubmit }) {
   const [isLoading, setIsLoading] = useState(false)
+  const [time, setTime] = useState(dayjs())
+  const navigate=useNavigate()
+  const  isValidToken  = useValidToken()
+    
+      useEffect(() => {
+        const userRole = localStorage.getItem("userRole")
+        if (!userRole || userRole !== "ROLE_STAFF" || !isValidToken) {
+            navigate("/login")
+          }
+        }, [isValidToken, navigate])
+      
+        if (!localStorage.getItem("userRole") || localStorage.getItem("userRole") !== "ROLE_STAFF") {
+        return <h1>Access Denied</h1>
+        }
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -46,7 +67,6 @@ export function CreateTask({ open, onOpenChange, onSubmit }) {
   function handleSubmit(values) {
     setIsLoading(true)
 
-    // Simulate API call
     setTimeout(() => {
       setIsLoading(false)
       onOpenChange(false)
@@ -60,6 +80,7 @@ export function CreateTask({ open, onOpenChange, onSubmit }) {
   }
 
   return (
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
@@ -164,24 +185,26 @@ export function CreateTask({ open, onOpenChange, onSubmit }) {
             </div>
 
             <FormField
-              control={form.control}
-              name="problemLinks"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Problem Links</FormLabel>
+            control={form.control}
+            name="Timer"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center gap-4 pt-4">
+                  <FormLabel className="whitespace-nowrap">Assign At</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Enter LeetCode problem links, one per line. Example:
-                  https://leetcode.com/problems/two-sum/
-                https://leetcode.com/problems/valid-parentheses/"
-                      className="min-h-[100px]"
-                      {...field}
+                    <TimePicker
+                      value={time}
+                      onChange={(newTime) => setTime(newTime)}
+                      renderInput={(params) => <TextField {...params} />}
+                      ampm={true}
                     />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+           />
+
 
             <FormField
               control={form.control}
@@ -220,6 +243,7 @@ export function CreateTask({ open, onOpenChange, onSubmit }) {
         </Form>
       </DialogContent>
     </Dialog>
+    
   )
 }
 

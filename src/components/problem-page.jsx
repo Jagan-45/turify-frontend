@@ -11,6 +11,9 @@ import { Separator } from "./ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
 import { useToast } from "../components/hooks/use-toast"
+import { useNavigate } from "react-router-dom"
+import useValidToken from "../components/hooks/useValidToken"
+
 
 // Mock problem data
 const mockProblems = {
@@ -121,6 +124,19 @@ function ProblemPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const navigate = useNavigate()
+  const isValidToken = useValidToken()
+  if (!isValidToken) {
+    navigate("/login")
+  }
+ 
+  const userRole = localStorage.getItem("userRole")
+  if (userRole !== "ROLE_STUDENT" || !userRole) {
+    return <h1>Access Denied</h1>
+  }
+          
+  
+
   useEffect(() => {
     const fetchProblem = () => {
       const problem = mockProblems[id]
@@ -209,10 +225,10 @@ function ProblemPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/student-dashboard" className="flex items-center gap-2">
+          <button onClick={() => Navigate(-1)} className="flex items-center gap-2 cursor-pointer">
               <ArrowLeft className="h-4 w-4" />
-              <span className="font-medium">Back to Dashboard</span>
-            </Link>
+              <span className="font-medium cursor-pointer">Go Back</span>
+          </button>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-2 font-bold text-xl">
               <Code2 className="h-6 w-6" />

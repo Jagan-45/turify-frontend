@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Link } from "react-router-dom"
+import { toast } from "react-toastify"
 import {
   Award,
   Calendar,
@@ -27,6 +28,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
 import { useToast } from "../components/hooks/use-toast"
+import { useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import useValidToken from "../components/hooks/useValidToken"
 
 // Mock data
 const mockContests = {
@@ -133,46 +137,64 @@ const mockProfile = {
   streak: 15,
 }
 
+
 function StudentDashboard() {
-  const [activeTab, setActiveTab] = useState("contests")
-  const [contestsTab, setContestsTab] = useState("ongoing")
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const { toast } = useToast()
-  const [tasks, setTasks] = useState(mockTasks)
+      const navigate = useNavigate()
+      const isValidToken = useValidToken()
 
-  // Function to format date
-  const formatDate = (date) => {
-    return date.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })
-  }
+      if (!isValidToken) {
+        console.log(isValidToken)
+        navigate("/login")
+      }
+      
+        const userRole = localStorage.getItem("userRole")
+        if (userRole !== "ROLE_STUDENT" || !userRole) {
+          return <h1>Access Denied</h1>
+        }
 
-  // Function to navigate calendar
-  const navigateCalendar = (direction) => {
-    const newDate = new Date(currentDate)
-    if (direction === "prev") {
-      newDate.setDate(newDate.getDate() - 1)
-    } else {
-      newDate.setDate(newDate.getDate() + 1)
-    }
-    setCurrentDate(newDate)
-  }
+        
+        
+   
 
-  // Calculate time remaining for ongoing contest
-  const calculateTimeRemaining = (endTime) => {
-    const end = new Date(endTime)
-    const now = new Date()
-    const diff = end.getTime() - now.getTime()
+      const [activeTab, setActiveTab] = useState("contests")
+      const [contestsTab, setContestsTab] = useState("ongoing")
+      const [currentDate, setCurrentDate] = useState(new Date())
+      const [tasks, setTasks] = useState(mockTasks)
 
-    if (diff <= 0) return "Contest ended"
+      // Function to format date
+      const formatDate = (date) => {
+        return date.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      }
 
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      // Function to navigate calendar
+      const navigateCalendar = (direction) => {
+        const newDate = new Date(currentDate)
+        if (direction === "prev") {
+          newDate.setDate(newDate.getDate() - 1)
+        } else {
+          newDate.setDate(newDate.getDate() + 1)
+        }
+        setCurrentDate(newDate)
+      }
 
-    return `${hours}h ${minutes}m remaining`
-  }
+      // Calculate time remaining for ongoing contest
+      const calculateTimeRemaining = (endTime) => {
+        const end = new Date(endTime)
+        const now = new Date()
+        const diff = end.getTime() - now.getTime()
+
+        if (diff <= 0) return "Contest ended"
+
+        const hours = Math.floor(diff / (1000 * 60 * 60))
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+        return `${hours}h ${minutes}m remaining`
+      }
+  
 
   // Toggle task completion
   const toggleTaskCompletion = (taskId) => {
@@ -184,6 +206,27 @@ function StudentDashboard() {
       title: task.completed ? "Task marked as incomplete" : "Task completed!",
       description: `${task.title} has been ${task.completed ? "marked as incomplete" : "marked as complete"}`,
     })
+  }
+
+  const handleLogout = async () => {
+    const token=localStorage.getItem("token")
+    localStorage.removeItem("token")
+    localStorage.removeItem("userRole")
+
+    const response= await fetch("http://localhost:8081/logout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (response.ok) {
+      toast.success("Logout successful")
+      navigate("/login")
+    } else {
+      toast.error("Logout failed")
+    }
+
   }
 
   return (
@@ -260,7 +303,7 @@ function StudentDashboard() {
                 <Settings className="h-4 w-4" />
                 Settings
               </Button>
-              <Button variant="outline" size="sm" className="w-full gap-2">
+              <Button variant="outline" size="sm" className="w-full gap-2 cursor-pointer" onClick={() => handleLogout()}>
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>

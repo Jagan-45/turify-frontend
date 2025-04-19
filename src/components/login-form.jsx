@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useNavigate, useLocation, Link } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { motion } from "framer-motion"
 import { ArrowLeft, Code2 } from "lucide-react"
 import { z } from "zod"
@@ -12,10 +12,11 @@ import { Button } from "./ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form"
 import { Input } from "./ui/input"
 import { ModeToggle } from "./mode-toggle"
-import { useToast } from "../components/hooks/use-toast"
+// Removed unused import
+import { toast } from "react-toastify"
 
 const formSchema = z.object({
-  username: z.string().min(3, {
+  mailId: z.string().min(18, {
     message: "Username must be at least 3 characters.",
   }),
   password: z.string().min(6, {
@@ -25,39 +26,63 @@ const formSchema = z.object({
 
 function LoginForm() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const searchParams = new URLSearchParams(location.search)
-  const role = searchParams.get("role") || "student"
-  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-
+  const [role,setRole]=useState('')
+  
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      mailId: "",
       password: "",
     },
   })
 
-  function onSubmit(values) {
-    setIsLoading(true)
+  const onSubmit = async (values) => {
+    setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      console.log(values);
+      const response = await fetch("http://localhost:8081/api/v0/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mailID: values.mailId,
+          password: values.password,
+        }),
+      });
 
-      if (role === "teacher") {
-        navigate("/teacher-dashboard")
+      console.log(response);
+
+      const result = await response.json();
+
+      if (response.ok) {
+        const decodedToken = JSON.parse(atob(result.data.split(".")[1]));
+        const userRole = decodedToken.role;
+        setRole(userRole);
+
+        
+        localStorage.setItem("accessToken", result.data);
+        localStorage.setItem("userRole", userRole);
+
+        toast.success("Login successful!");
+        if (userRole === "ROLE_STUDENT") {
+          const username = values.mailId.split(".")[0];
+          navigate(`/student-dashboard/${username}`);
+        } else if (userRole === "ROLE_STAFF") {
+          const username = values.mailId.split(".")[0];
+          navigate(`/teacher-dashboard/${username}`);
+        }
       } else {
-        navigate("/student-dashboard")
+        toast.error(result.message || "Login failed!");
       }
-
-      useToast({
-        title: "Login successful",
-        description: `Welcome back, ${values.username}!`,
-      })
-    }, 1500)
-  }
+    } catch (error) {
+      toast.error("An error occurred during login!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -82,7 +107,7 @@ function LoginForm() {
               <Code2 className="h-8 w-8" />
               <span>Turify</span>
             </div>
-            <h1 className="text-2xl font-bold">{role === "teacher" ? "Teacher Login" : "Student Login"}</h1>
+            <h1 className="text-2xl font-bold">{"Login to your Account"}</h1>
             <p className="text-muted-foreground">Enter your credentials to access your account</p>
           </div>
           <div className="space-y-4">
@@ -90,10 +115,10 @@ function LoginForm() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="username"
+                  name="mailId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>Mail Id</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter your username" {...field} />
                       </FormControl>

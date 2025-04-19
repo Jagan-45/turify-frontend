@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Link } from "react-router-dom"
+import { toast } from "react-toastify"
 import {
   Calendar,
   Code2,
@@ -28,6 +29,9 @@ import { useToast } from "../components/hooks/use-toast"
 import { CreateBatch } from "./create-batch"
 import { CreateContest } from "./create-contest"
 import { CreateTask } from "./create-task"
+import  useValidToken  from "../components/hooks/useValidToken"
+import { useNavigate } from "react-router-dom"
+import { useEffect } from "react"
 
 // Mock data
 const mockProfile = {
@@ -76,7 +80,21 @@ function TeacherDashboard() {
   const [openCreateBatch, setOpenCreateBatch] = useState(false)
   const [openCreateContest, setOpenCreateContest] = useState(false)
   const [openCreateTask, setOpenCreateTask] = useState(false)
-  const { toast } = useToast()
+
+  const navigate = useNavigate()
+  const isValidToken = useValidToken()
+
+
+  const userRole = localStorage.getItem("userRole")
+  if (!userRole || userRole !== "ROLE_STAFF" || !isValidToken) {
+      navigate("/login")
+    }
+
+
+  if (!localStorage.getItem("userRole") || localStorage.getItem("userRole") !== "ROLE_STAFF") {
+  return <h1>Access Denied</h1>
+  }
+
 
   const handleCreateBatch = (batchData) => {
     // Mock API call
@@ -104,6 +122,30 @@ function TeacherDashboard() {
       description: `Task has been assigned to ${taskData.batch} successfully.`,
     })
   }
+  
+  const handleLogout = async () => {
+    const token=localStorage.getItem("token")
+    console.log(token)
+    localStorage.removeItem("token")
+    localStorage.removeItem("userRole")
+
+    const response= await fetch("http://localhost:8081/logout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    console.log(response)
+    if (response.ok) {
+      toast.success("Logout successful")
+      navigate("/login")
+    } else {
+      toast.error("Logout failed")
+    }
+
+  }
+  
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -172,7 +214,7 @@ function TeacherDashboard() {
                 <Settings className="h-4 w-4" />
                 Settings
               </Button>
-              <Button variant="outline" size="sm" className="w-full gap-2">
+              <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => handleLogout()}>
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>

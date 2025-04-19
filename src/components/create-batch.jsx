@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState,useEffect } from "react"
 import { Upload, Users, X } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form"
 import { Input } from "./ui/input"
 import { Textarea } from "./ui/textarea"
+import { useNavigate } from "react-router-dom"
+import useValidToken from "../components/hooks/useValidToken"
 
 const formSchema = z.object({
   batchName: z.string().min(3, {
@@ -28,6 +30,19 @@ const formSchema = z.object({
 export function CreateBatch({ open, onOpenChange, onSubmit }) {
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState(null)
+  const navigate=useNavigate()
+  const  isValidToken  = useValidToken()
+
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole")
+    if (!userRole || userRole !== "ROLE_STAFF" || !isValidToken) {
+        navigate("/login")
+      }
+    }, [isValidToken, navigate])
+  
+    if (!localStorage.getItem("userRole") || localStorage.getItem("userRole") !== "ROLE_STAFF") {
+    return <h1>Access Denied</h1>
+    }
 
   const form = useForm({
     resolver: zodResolver(formSchema),
