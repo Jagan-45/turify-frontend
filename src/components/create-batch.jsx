@@ -22,7 +22,7 @@ const formSchema = z.object({
   students: z.string().optional(),
 })
 
-export function CreateBatch({ open, onOpenChange}) {
+export function CreateBatch({ open, onOpenChange, setIsCreated}) {
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState(null)
   const navigate=useNavigate()
@@ -84,6 +84,7 @@ export function CreateBatch({ open, onOpenChange}) {
       }
 
       toast.success("Batch created successfully!")
+      setIsCreated((prev) => !prev)
       onOpenChange(false)
       form.reset()
       setFile(null)

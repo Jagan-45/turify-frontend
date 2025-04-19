@@ -83,6 +83,7 @@ function TeacherDashboard() {
   const [batches, setBatches] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [openStudentDialog, setOpenStudentDialog] = useState(false);
+  const [batchCreated, setBatchCreated] = useState(false)
 
   const navigate = useNavigate()
   const isValidToken = useValidToken()
@@ -131,7 +132,7 @@ function TeacherDashboard() {
     };
 
     fetchBatches();
-  }, []);
+  }, [batchCreated]);
 
 
   const handleCreateContest = (contestData) => {
@@ -542,7 +543,7 @@ function TeacherDashboard() {
       )}
 
       {/* Dialogs */}
-      <CreateBatch open={openCreateBatch} onOpenChange={setOpenCreateBatch} />
+      <CreateBatch open={openCreateBatch} onOpenChange={setOpenCreateBatch} isCreated={setBatchCreated} />
       <CreateContest open={openCreateContest} onOpenChange={setOpenCreateContest} onSubmit={handleCreateContest} />
       <CreateTask open={openCreateTask} onOpenChange={setOpenCreateTask} onSubmit={handleCreateTask} />
     </div>
