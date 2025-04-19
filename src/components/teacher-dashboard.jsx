@@ -118,6 +118,7 @@ function TeacherDashboard() {
         }
 
         const data = await response.json();
+        console.log(data)
         const processedBatches = data.data.map((batch) => ({
           name: batch["batch name"],
           students: batch.students.length, 
@@ -175,6 +176,11 @@ function TeacherDashboard() {
     }
 
   }
+
+  const handleViewStudents = (students) => {
+    setSelectedStudents(students);
+    setOpenStudentDialog(true);
+  };
   
 
   return (
@@ -521,22 +527,37 @@ function TeacherDashboard() {
         </div>
       </main>
 
-       {/* Dialog for viewing students */}
-       {openStudentDialog && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-lg font-bold">Student List</h2>
-            <button className="absolute top-2 right-2" onClick={() => setOpenStudentDialog(false)}>
+   {/* Dialog for viewing students */}
+      {openStudentDialog && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-lg w-full relative"> {/* Added relative positioning */}
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white">Student List</h2>
+            <button 
+              className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-red-500" 
+              onClick={() => setOpenStudentDialog(false)}
+              aria-label="Close"
+            >
               <span className="text-red-500">X</span>
             </button>
-            <div className="mt-4">
-              {selectedStudents.map((student, index) => (
-                <div key={index} className="flex justify-between border-b py-2">
-                  <span>{student.username}</span>
-                  <span>{student.mailId}</span>
-                  <span>{student.rating}</span>
-                </div>
-              ))}
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-100 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300">Name</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300">Email</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300">Rating</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                  {selectedStudents.map((student, index) => (
+                    <tr key={index} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200">{student.username}</td>
+                      <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200">{student.mailId}</td>
+                      <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200">{student.rating}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
