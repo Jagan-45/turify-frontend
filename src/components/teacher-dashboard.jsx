@@ -84,6 +84,8 @@ function TeacherDashboard() {
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [openStudentDialog, setOpenStudentDialog] = useState(false);
   const [batchCreated, setBatchCreated] = useState(false)
+  const [batchName, setBatchName] = useState("")
+  const [method,setMethod]=useState("POST")
 
   const navigate = useNavigate()
   const isValidToken = useValidToken()
@@ -181,6 +183,36 @@ function TeacherDashboard() {
     setSelectedStudents(students);
     setOpenStudentDialog(true);
   };
+
+  const handleEditBatch = (batchName) => { 
+    setOpenCreateBatch(true)
+    setBatchName(batchName)
+    setMethod("PUT")
+  }
+
+  const handleDeleteBatch = async (batchId) => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const response = await fetch(`http://localhost:8081/api/v0/batches/${batchId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to delete batch.");
+        return;
+      }
+
+      setBatches((prevBatches) => prevBatches.filter((batch) => batch.name !== batchId));
+      setBatchCreated((prev) => !prev);
+      toast.success("Batch deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting batch:", error);
+      toast.error("Failed to delete batch.");
+    }
+  }
   
 
   return (
@@ -307,7 +339,7 @@ function TeacherDashboard() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={()=>handleEditBatch(batch.name)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit Batch
                                 </DropdownMenuItem>
@@ -315,7 +347,7 @@ function TeacherDashboard() {
                                   <Users className="h-4 w-4 mr-2" />
                                   View Students
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">
+                                <DropdownMenuItem className="text-destructive" onClick={()=>handleDeleteBatch(batch.name)}>
                                   <Trash className="h-4 w-4 mr-2" />
                                   Delete Batch
                                 </DropdownMenuItem>
@@ -530,7 +562,7 @@ function TeacherDashboard() {
    {/* Dialog for viewing students */}
       {openStudentDialog && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-lg w-full relative"> {/* Added relative positioning */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-lg w-full relative"> 
             <h2 className="text-lg font-bold text-gray-800 dark:text-white">Student List</h2>
             <button 
               className="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-red-500" 
@@ -564,7 +596,7 @@ function TeacherDashboard() {
       )}
 
       {/* Dialogs */}
-      <CreateBatch open={openCreateBatch} onOpenChange={setOpenCreateBatch} isCreated={setBatchCreated} />
+      <CreateBatch open={openCreateBatch} onOpenChange={setOpenCreateBatch} isCreated={setBatchCreated} BatchName={batchName} method={method}/>
       <CreateContest open={openCreateContest} onOpenChange={setOpenCreateContest} onSubmit={handleCreateContest} />
       <CreateTask open={openCreateTask} onOpenChange={setOpenCreateTask} onSubmit={handleCreateTask} />
     </div>

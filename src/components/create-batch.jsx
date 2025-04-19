@@ -22,7 +22,7 @@ const formSchema = z.object({
   students: z.string().optional(),
 })
 
-export function CreateBatch({ open, onOpenChange, setIsCreated}) {
+export function CreateBatch({ open, onOpenChange, setIsCreated, BatchName, method}) {
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState(null)
   const navigate=useNavigate()
@@ -70,7 +70,7 @@ export function CreateBatch({ open, onOpenChange, setIsCreated}) {
     try {
       setIsLoading(true)
       const response = await fetch(`http://localhost:8081/api/v0/batches?batchName=${form.getValues("batchName")}`, {
-        method: "POST",
+        method: method,
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
@@ -118,7 +118,7 @@ export function CreateBatch({ open, onOpenChange, setIsCreated}) {
                 <FormItem>
                   <FormLabel>Batch Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., CSE 2023" {...field} />
+                    <Input placeholder="e.g., CSE 2023" {...field} value={BatchName}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
