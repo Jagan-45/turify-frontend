@@ -18,11 +18,33 @@ const useIsValidToken = () => {
     console.log(payload.exp*1000,Date.now(),Date.now()>=expirationTime)
 
     if (Date.now() >= expirationTime) {
-      localStorage.removeItem('accessToken'); 
-      localStorage.removeItem('userRole')
-      setIsValid(false); 
+      fetch('http://localhost:8081/api/v0/auth', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      })
+      .then((response) => {
+        if (!response.ok) {
+        throw new Error('Failed to refresh token');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (data && data.data) {
+        localStorage.setItem('accessToken', data.data);
+        setIsValid(true);
+        } else {
+        throw new Error('Invalid response data');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userRole');
+        setIsValid(false);
+      });
     } else {
-      setIsValid(true); 
+      setIsValid(true);
     }
   }, []);
 
