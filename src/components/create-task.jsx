@@ -42,6 +42,7 @@ export function CreateTask({ open, onOpenChange, batches, isCreated, method = "P
   const [isLoading, setIsLoading] = useState(false)
   const [openBatchSelector, setOpenBatchSelector] = useState(false)
   const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState("")
   const isValidToken = useValidToken()
 
   const form = useForm({
@@ -157,7 +158,7 @@ export function CreateTask({ open, onOpenChange, batches, isCreated, method = "P
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
-            <FormField
+          <FormField
               control={form.control}
               name="batches"
               render={({ field }) => (
@@ -181,12 +182,15 @@ export function CreateTask({ open, onOpenChange, batches, isCreated, method = "P
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
                       <Command>
-                        <CommandInput placeholder="Search batches..." />
+                        <CommandInput 
+                          placeholder="Search batches..." 
+                          onChange={(e) => setSearchTerm(e.target.value)} 
+                        />
                         <CommandList>
                           <CommandEmpty>No batch found.</CommandEmpty>
                           <CommandGroup>
                             <ScrollArea className="h-60">
-                              {batches.map((batch) => (
+                              {batches.filter(batch => batch.toLowerCase().includes(searchTerm.toLowerCase())).map((batch) => (
                                 <CommandItem key={batch} value={batch} onSelect={() => toggleBatch(batch)}>
                                   <Check
                                     className={cn(
@@ -204,7 +208,6 @@ export function CreateTask({ open, onOpenChange, batches, isCreated, method = "P
                     </PopoverContent>
                   </Popover>
 
-                  {/* Display selected batches as badges */}
                   {field.value.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {field.value.map((batch) => (

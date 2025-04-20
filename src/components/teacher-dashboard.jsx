@@ -638,10 +638,6 @@ function TeacherDashboard() {
                                       <Edit className="h-4 w-4 mr-2" />
                                       Edit Task
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                      <Users className="h-4 w-4 mr-2" />
-                                      View Submissions
-                                    </DropdownMenuItem>
                                     <DropdownMenuItem className="text-destructive"  onClick={()=>handleDeleteTask(task.id)}>
                                       <Trash className="h-4 w-4 mr-2"/>
                                       Delete Task
