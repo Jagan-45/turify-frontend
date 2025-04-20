@@ -22,7 +22,7 @@ const formSchema = z.object({
   students: z.string().optional(),
 })
 
-export function CreateBatch({ open, onOpenChange, setIsCreated, BatchName, method}) {
+export function CreateBatch({ open, onOpenChange, isCreated, BatchName, method}) {
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState(null)
   const navigate=useNavigate()
@@ -84,7 +84,7 @@ export function CreateBatch({ open, onOpenChange, setIsCreated, BatchName, metho
       }
 
       toast.success("Batch created successfully!")
-      setIsCreated((prev) => !prev)
+       isCreated((prev) => !prev)
       onOpenChange(false)
       form.reset()
       setFile(null)
@@ -118,7 +118,11 @@ export function CreateBatch({ open, onOpenChange, setIsCreated, BatchName, metho
                 <FormItem>
                   <FormLabel>Batch Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., CSE 2023" {...field} value={BatchName}/>
+                    <Input
+                      placeholder="e.g., IT 2023"
+                      {...field}
+                      value={BatchName !== "" ? BatchName : field.value}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
