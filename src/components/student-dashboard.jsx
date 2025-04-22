@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Link } from "react-router-dom"
-import { toast } from "react-toastify"
+import { Link, useNavigate } from "react-router-dom"
 import {
   Award,
   Calendar,
@@ -18,6 +17,7 @@ import {
   Settings,
   Trophy,
   User,
+  Loader2,
 } from "lucide-react"
 
 import { Button } from "./ui/button"
@@ -27,9 +27,7 @@ import { ModeToggle } from "./mode-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
-import { useToast } from "../components/hooks/use-toast"
-import { useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { toast } from "react-toastify"
 import useValidToken from "../components/hooks/useValidToken"
 
 // Mock data
@@ -99,33 +97,6 @@ const mockContests = {
   ],
 }
 
-const mockTasks = [
-  {
-    id: 1,
-    title: "Two Sum",
-    difficulty: "Easy",
-    tags: ["Arrays", "Hash Table"],
-    completed: true,
-    link: "https://leetcode.com/problems/two-sum/",
-  },
-  {
-    id: 2,
-    title: "Valid Parentheses",
-    difficulty: "Easy",
-    tags: ["Stack", "String"],
-    completed: false,
-    link: "https://leetcode.com/problems/valid-parentheses/",
-  },
-  {
-    id: 3,
-    title: "Merge Two Sorted Lists",
-    difficulty: "Easy",
-    tags: ["Linked List", "Recursion"],
-    completed: false,
-    link: "https://leetcode.com/problems/merge-two-sorted-lists/",
-  },
-]
-
 const mockProfile = {
   name: "Aditya Singh",
   username: "aditya_singh",
@@ -137,96 +108,192 @@ const mockProfile = {
   streak: 15,
 }
 
-
 function StudentDashboard() {
-      const navigate = useNavigate()
-      const isValidToken = useValidToken()
+  const navigate = useNavigate()
+  const isValidToken = useValidToken()
 
-      if (!isValidToken) {
-        console.log(isValidToken)
-        navigate("/login")
-      }
-      
-        const userRole = localStorage.getItem("userRole")
-        if (userRole !== "ROLE_STUDENT" || !userRole) {
-          return <h1>Access Denied</h1>
-        }
+  const [activeTab, setActiveTab] = useState("contests")
+  const [contestsTab, setContestsTab] = useState("ongoing")
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [tasks, setTasks] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [completingTask, setCompletingTask] = useState(null)
+  const [isStudent, setIsStudent] = useState(false)
+  const [accessDenied, setAccessDenied] = useState(false)
 
-        
-        
-   
-
-      const [activeTab, setActiveTab] = useState("contests")
-      const [contestsTab, setContestsTab] = useState("ongoing")
-      const [currentDate, setCurrentDate] = useState(new Date())
-      const [tasks, setTasks] = useState(mockTasks)
-
-      // Function to format date
-      const formatDate = (date) => {
-        return date.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
-      }
-
-      // Function to navigate calendar
-      const navigateCalendar = (direction) => {
-        const newDate = new Date(currentDate)
-        if (direction === "prev") {
-          newDate.setDate(newDate.getDate() - 1)
-        } else {
-          newDate.setDate(newDate.getDate() + 1)
-        }
-        setCurrentDate(newDate)
-      }
-
-      // Calculate time remaining for ongoing contest
-      const calculateTimeRemaining = (endTime) => {
-        const end = new Date(endTime)
-        const now = new Date()
-        const diff = end.getTime() - now.getTime()
-
-        if (diff <= 0) return "Contest ended"
-
-        const hours = Math.floor(diff / (1000 * 60 * 60))
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-
-        return `${hours}h ${minutes}m remaining`
-      }
-  
-
-  // Toggle task completion
-  const toggleTaskCompletion = (taskId) => {
-    setTasks(tasks.map((task) => (task.id === taskId ? { ...task, completed: !task.completed } : task)))
-
-    const task = tasks.find((t) => t.id === taskId)
-
-    useToast({
-      title: task.completed ? "Task marked as incomplete" : "Task completed!",
-      description: `${task.title} has been ${task.completed ? "marked as incomplete" : "marked as complete"}`,
+  // Function to format date for display
+  const formatDate = (date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     })
   }
 
+  // Function to format date for API request (YYYY-MM-DD)
+  const formatDateForApi = (date) => {
+    return date.toISOString().split("T")[0]
+  }
+
+  // Function to navigate calendar
+  const navigateCalendar = (direction) => {
+    const newDate = new Date(currentDate)
+    if (direction === "prev") {
+      newDate.setDate(newDate.getDate() - 1)
+    } else {
+      newDate.setDate(newDate.getDate() + 1)
+    }
+    setCurrentDate(newDate)
+  }
+
+  // Calculate time remaining for ongoing contest
+  const calculateTimeRemaining = (endTime) => {
+    const end = new Date(endTime)
+    const now = new Date()
+    const diff = end.getTime() - now.getTime()
+
+    if (diff <= 0) return "Contest ended"
+
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+    return `${hours}h ${minutes}m remaining`
+  }
+
+  // Mark task as complete
+  const markTaskAsComplete = async (taskId, problemId) => {
+    setCompletingTask(`${taskId}-${problemId}`)
+
+    try {
+      const response = await fetch(
+        `http://localhost:8081/api/v0/tasks/track-status?taskId=${taskId}&problemId=${problemId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        },
+      )
+
+      if (response.ok) {
+        setTasks((prevTasks) =>
+          prevTasks.map((task) => {
+            if (task.id === taskId) {
+              return {
+                ...task,
+                problemLinks: task.problemLinks.map((problem) => {
+                  if (problem.id === problemId) {
+                    return { ...problem, solved: true }
+                  }
+                  return problem
+                }),
+              }
+            }
+            return task
+          }),
+        )
+
+        toast.success("Task marked as complete")  
+      } else if (response.status === 400) {
+        toast.error("cannot mark as complete, solve the problem first")
+      } else {
+        toast.error("something went wrong")
+      }
+    } catch (error) {
+      console.error("Error marking task as complete:", error)
+      toast.error("Failed to update task status.")  
+    } finally {
+      setCompletingTask(null)
+    }
+  }
+
   const handleLogout = async () => {
-    const token=localStorage.getItem("accessToken")
+    const token = localStorage.getItem("accessToken")
     localStorage.removeItem("accessToken")
     localStorage.removeItem("userRole")
 
-    const response= await fetch("http://localhost:8081/logout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    if (response.ok) {
-      toast.success("Logout successful")
-      navigate("/login")
-    } else {
+    try {
+      const response = await fetch("http://localhost:8081/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        toast.success("Logged out successfully")
+        navigate("/login")
+      } else {
+        toast.error("Logout failed")
+      }
+    } catch (error) {
+      console.error("Error during logout:", error)
       toast.error("Logout failed")
     }
+  }
 
+  // Check authentication and fetch tasks
+  useEffect(() => {
+    if (!isValidToken) {
+      navigate("/login")
+      return
+    }
+
+    const userRole = localStorage.getItem("userRole")
+    if (userRole === "ROLE_STUDENT") {
+      setIsStudent(true)
+    } else {
+      setIsStudent(false)
+      setAccessDenied(true)
+    }
+  }, [isValidToken, navigate])
+
+  // Fetch tasks for the current date
+  useEffect(() => {
+    if (!isStudent) return
+
+    const fetchTasks = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(
+          `http://localhost:8081/api/v0/tasks/assigned-task/${formatDateForApi(currentDate)}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          },
+        )
+
+        if (response.status === 500) {
+          // No tasks assigned for this day
+          setTasks([])
+          return
+        }
+
+        if (response.ok) {
+          const result = await response.json()
+          setTasks(result.data || [])
+        } else {
+          console.error("Failed to fetch tasks")
+          setTasks([])
+        }
+      } catch (error) {
+        console.error("Error fetching tasks:", error)
+        setTasks([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTasks()
+  }, [currentDate, isStudent])
+
+  if (accessDenied) {
+    return <h1>Access Denied</h1>
   }
 
   return (
@@ -240,7 +307,7 @@ function StudentDashboard() {
           <div className="flex items-center gap-4">
             <ModeToggle />
             <Avatar>
-              <AvatarImage src="" alt={mockProfile.name} />
+              <AvatarImage src="/placeholder.svg" alt={mockProfile.name} />
               <AvatarFallback>AS</AvatarFallback>
             </Avatar>
           </div>
@@ -257,7 +324,7 @@ function StudentDashboard() {
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center space-y-2">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="" alt={mockProfile.name} />
+                  <AvatarImage src="/placeholder.svg" alt={mockProfile.name} />
                   <AvatarFallback className="text-xl">AS</AvatarFallback>
                 </Avatar>
                 <div className="text-center">
@@ -303,7 +370,7 @@ function StudentDashboard() {
                 <Settings className="h-4 w-4" />
                 Settings
               </Button>
-              <Button variant="outline" size="sm" className="w-full gap-2 cursor-pointer" onClick={() => handleLogout()}>
+              <Button variant="outline" size="sm" className="w-full gap-2 cursor-pointer" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>
@@ -508,72 +575,119 @@ function StudentDashboard() {
                   </Button>
                 </div>
 
-                <div className="space-y-4">
-                  {tasks.map((task) => (
-                    <motion.div
-                      key={task.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Card className={task.completed ? "border-green-500" : ""}>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="flex items-center gap-2">
-                                {task.completed && <CheckCircle className="h-5 w-5 text-green-500" />}
-                                {task.title}
-                              </CardTitle>
-                              <div className="flex gap-2 mt-1">
-                                {task.tags.map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />
+                    <h3 className="font-medium text-lg">Loading tasks...</h3>
+                  </div>
+                ) : tasks.length > 0 ? (
+                  <div className="space-y-4">
+                    {tasks.map((task) => (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Card className={task.completed ? "border-green-500" : ""}>
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="flex items-center gap-2">
+                                  {task.completed && <CheckCircle className="h-5 w-5 text-green-500" />}
+                                  Task {task.id.substring(0, 8)}
+                                </CardTitle>
                               </div>
+                              <Badge
+                                variant={task.completed ? "outline" : "secondary"}
+                                className={task.completed ? "border-green-500 text-green-500" : ""}
+                              >
+                                {task.completed ? "Completed" : "Pending"}
+                              </Badge>
                             </div>
-                            <Badge
-                              className={
-                                task.difficulty === "Easy"
-                                  ? "bg-green-500 hover:bg-green-600"
-                                  : task.difficulty === "Medium"
-                                    ? "bg-yellow-500 hover:bg-yellow-600"
-                                    : "bg-red-500 hover:bg-red-600"
-                              }
-                            >
-                              {task.difficulty}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Status:</span>
-                            <span
-                              className={`text-sm font-medium ${task.completed ? "text-green-500" : "text-yellow-500"}`}
-                            >
-                              {task.completed ? "Completed" : "Pending"}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex gap-2">
-                          <a href={task.link} target="_blank" rel="noopener noreferrer" className="flex-1">
-                            <Button variant="outline" className="w-full gap-2">
-                              <ExternalLink className="h-4 w-4" />
-                              Open Problem
-                            </Button>
-                          </a>
-                          <Button
-                            className="flex-1"
-                            variant={task.completed ? "outline" : "default"}
-                            onClick={() => toggleTaskCompletion(task.id)}
-                          >
-                            {task.completed ? "Mark Incomplete" : "Mark Complete"}
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {task.problemLinks.map((problem) => (
+                              <div
+                                key={problem.id}
+                                className={`p-4 rounded-lg border ${problem.solved ? "border-green-500" : ""}`}
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-medium flex items-center gap-2">
+                                    {problem.solved && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                    {problem.link.split("/").pop().replace(/-/g, " ")}
+                                  </h4>
+                                  <Badge
+                                    className={
+                                      problem.difficulty === "Easy"
+                                        ? "bg-green-500 hover:bg-green-600"
+                                        : problem.difficulty === "Medium"
+                                          ? "bg-yellow-500 hover:bg-yellow-600"
+                                          : "bg-red-500 hover:bg-red-600"
+                                    }
+                                  >
+                                    {problem.difficulty}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-muted-foreground">Status:</span>
+                                    <span
+                                      className={
+                                        problem.solved ? "text-green-500 font-medium" : "text-yellow-500 font-medium"
+                                      }
+                                    >
+                                      {problem.solved ? "Solved" : "Pending"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-muted-foreground">Accuracy:</span>
+                                    <span className="font-medium">{problem.acRate.toFixed(2)}%</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-muted-foreground">Attempted:</span>
+                                    <span className="font-medium">{problem.attempted ? "Yes" : "No"}</span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <a href={problem.link} target="_blank" rel="noopener noreferrer" className="flex-1">
+                                    <Button variant="outline" className="w-full gap-2">
+                                      <ExternalLink className="h-4 w-4" />
+                                      Open Problem
+                                    </Button>
+                                  </a>
+                                  <Button
+                                    className="flex-1"
+                                    variant={problem.solved ? "outline" : "default"}
+                                    disabled={problem.solved || completingTask === `${task.id}-${problem.id}`}
+                                    onClick={() => markTaskAsComplete(task.id, problem.id)}
+                                  >
+                                    {completingTask === `${task.id}-${problem.id}` ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Processing...
+                                      </>
+                                    ) : problem.solved ? (
+                                      "Completed"
+                                    ) : (
+                                      "Mark as Complete"
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Code className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="font-medium text-lg">No Tasks Assigned</h3>
+                    <p className="text-muted-foreground">There are no tasks assigned for this date.</p>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 
@@ -622,4 +736,3 @@ function StudentDashboard() {
 }
 
 export default StudentDashboard
-
