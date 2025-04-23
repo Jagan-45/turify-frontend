@@ -3,22 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Link, useNavigate } from "react-router-dom"
-import {
-  Award,
-  Calendar,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Code,
-  Code2,
-  ExternalLink,
-  LogOut,
-  Settings,
-  Trophy,
-  User,
-  Loader2,
-} from "lucide-react"
+import { Award, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, Code, Code2, ExternalLink, LogOut, Settings, Trophy, User, Loader2 } from 'lucide-react'
 
 import { Button } from "./ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card"
@@ -29,74 +14,9 @@ import { Badge } from "./ui/badge"
 import { Progress } from "./ui/progress"
 import { toast } from "react-toastify"
 import useValidToken from "../components/hooks/useValidToken"
+import { useLocation } from "react-router-dom";
 
-// Mock data
-const mockContests = {
-  scheduled: [
-    {
-      id: 1,
-      title: "Weekly Algorithm Challenge",
-      date: "2023-04-10",
-      time: "14:00",
-      duration: "2 hours",
-      batch: "Batch 1",
-      problems: 5,
-    },
-    {
-      id: 2,
-      title: "Data Structures Deep Dive",
-      date: "2023-04-15",
-      time: "10:00",
-      duration: "3 hours",
-      batch: "Batch 1",
-      problems: 6,
-    },
-  ],
-  ongoing: [
-    {
-      id: 3,
-      title: "Dynamic Programming Contest",
-      endTime: "2023-04-05T15:30:00",
-      duration: "2 hours",
-      batch: "Batch 1",
-      problems: 4,
-      completed: 1,
-    },
-  ],
-  past: [
-    {
-      id: 4,
-      title: "Graph Theory Challenge",
-      date: "2023-03-28",
-      duration: "2.5 hours",
-      batch: "Batch 1",
-      problems: 5,
-      score: 85,
-      rank: 3,
-    },
-    {
-      id: 5,
-      title: "Sorting Algorithms Contest",
-      date: "2023-03-20",
-      duration: "1.5 hours",
-      batch: "Batch 1",
-      problems: 4,
-      score: 92,
-      rank: 2,
-    },
-    {
-      id: 6,
-      title: "Recursion and Backtracking",
-      date: "2023-03-15",
-      duration: "2 hours",
-      batch: "Batch 1",
-      problems: 5,
-      score: 78,
-      rank: 5,
-    },
-  ],
-}
-
+// Mock profile data
 const mockProfile = {
   name: "Aditya Singh",
   username: "aditya_singh",
@@ -120,6 +40,14 @@ function StudentDashboard() {
   const [completingTask, setCompletingTask] = useState(null)
   const [isStudent, setIsStudent] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
+  const location = useLocation();
+
+  const [contests, setContests] = useState({
+    active: [],
+    scheduled: [],
+    closed: []
+  })
+  const [isLoadingContests, setIsLoadingContests] = useState(false)
 
   // Function to format date for display
   const formatDate = (date) => {
@@ -158,6 +86,26 @@ function StudentDashboard() {
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
 
     return `${hours}h ${minutes}m remaining`
+  }
+
+  // Calculate contest duration
+  const calculateDuration = (startTime, endTime) => {
+    const start = new Date(startTime)
+    const end = new Date(endTime)
+    const diff = end.getTime() - start.getTime()
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    
+    return `${hours}h ${minutes}m`
+  }
+
+  // Generate contest name based on day of week
+  const generateContestName = (startTime) => {
+    const date = new Date(startTime)
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const dayName = days[date.getDay()]
+    return `${dayName} Contest`
   }
 
   // Mark task as complete
@@ -212,6 +160,7 @@ function StudentDashboard() {
     const token = localStorage.getItem("accessToken")
     localStorage.removeItem("accessToken")
     localStorage.removeItem("userRole")
+    localStorage.removeItem("contestToken")
 
     try {
       const response = await fetch("http://localhost:8081/logout", {
@@ -234,6 +183,59 @@ function StudentDashboard() {
     }
   }
 
+  // Fetch contests
+  const fetchContests = async () => {
+    setIsLoadingContests(true)
+    try {
+      const response = await fetch("http://localhost:8081/api/v0/contest/assigned-contests", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        // Segregate contests by status
+        const active = []
+        const scheduled = []
+        const closed = []
+        
+        result.data.forEach(contest => {
+          switch(contest.status) {
+            case "ACTIVE":
+              active.push(contest)
+              break
+            case "SCHEDULED":
+              scheduled.push(contest)
+              break
+            case "CLOSED":
+              closed.push(contest)
+              break
+            default:
+              break
+          }
+        })
+        
+        setContests({
+          active,
+          scheduled,
+          closed
+        })
+      } else {
+        console.error("Failed to fetch contests")
+        toast.error("Failed to fetch contests")
+      }
+    } catch (error) {
+      console.error("Error fetching contests:", error)
+      toast.error("Error fetching contests")
+    } finally {
+      setIsLoadingContests(false)
+    }
+  }
+
   // Check authentication and fetch tasks
   useEffect(() => {
     if (!isValidToken) {
@@ -249,6 +251,22 @@ function StudentDashboard() {
       setAccessDenied(true)
     }
   }, [isValidToken, navigate])
+
+  // Fetch contests when component mounts
+  useEffect(() => {
+    if (isStudent) {
+      fetchContests()
+    }
+  }, [isStudent])
+
+
+
+  
+  useEffect(() => {
+    if (isStudent) {
+      fetchContests();
+    }
+  }, [isStudent, location]);
 
   // Fetch tasks for the current date
   useEffect(() => {
@@ -290,7 +308,9 @@ function StudentDashboard() {
     }
 
     fetchTasks()
-  }, [currentDate, isStudent])
+
+
+  }, [currentDate, isStudent, location])
 
   if (accessDenied) {
     return <h1>Access Denied</h1>
@@ -396,10 +416,15 @@ function StudentDashboard() {
 
                   {/* Ongoing Contests */}
                   <TabsContent value="ongoing" className="space-y-4">
-                    {mockContests.ongoing.length > 0 ? (
-                      mockContests.ongoing.map((contest) => (
+                    {isLoadingContests ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />
+                        <h3 className="font-medium text-lg">Loading contests...</h3>
+                      </div>
+                    ) : contests.active.length > 0 ? (
+                      contests.active.map((contest) => (
                         <motion.div
-                          key={contest.id}
+                          key={contest.contestID}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.3 }}
@@ -408,8 +433,8 @@ function StudentDashboard() {
                             <CardHeader className="pb-2">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <CardTitle>{contest.title}</CardTitle>
-                                  <CardDescription>{contest.batch}</CardDescription>
+                                  <CardTitle>{generateContestName(contest.startTime)}</CardTitle>
+                                  <CardDescription>{contest.contestName}</CardDescription>
                                 </div>
                                 <Badge className="bg-green-500 hover:bg-green-600">Live</Badge>
                               </div>
@@ -424,20 +449,11 @@ function StudentDashboard() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Duration</span>
-                                <span className="font-medium">{contest.duration}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Problems</span>
-                                <span className="font-medium">
-                                  {contest.completed}/{contest.problems} completed
-                                </span>
-                              </div>
-                              <div className="pt-2">
-                                <Progress value={(contest.completed / contest.problems) * 100} className="h-2" />
+                                <span className="font-medium">{calculateDuration(contest.startTime, contest.endTime)}</span>
                               </div>
                             </CardContent>
                             <CardFooter>
-                              <Link to={`/contest/${contest.id}`} className="w-full">
+                              <Link to={`/contest/${contest.contestID}`} className="w-full">
                                 <Button className="w-full">Continue Contest</Button>
                               </Link>
                             </CardFooter>
@@ -455,110 +471,122 @@ function StudentDashboard() {
 
                   {/* Scheduled Contests */}
                   <TabsContent value="scheduled" className="space-y-4">
-                    {mockContests.scheduled.map((contest) => (
-                      <motion.div
-                        key={contest.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle>{contest.title}</CardTitle>
-                                <CardDescription>{contest.batch}</CardDescription>
+                    {isLoadingContests ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />
+                        <h3 className="font-medium text-lg">Loading contests...</h3>
+                      </div>
+                    ) : contests.scheduled.length > 0 ? (
+                      contests.scheduled.map((contest) => (
+                        <motion.div
+                          key={contest.contestID}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <CardTitle>{generateContestName(contest.startTime)}</CardTitle>
+                                  <CardDescription>{contest.contestName}</CardDescription>
+                                </div>
+                                <Badge variant="outline">Upcoming</Badge>
                               </div>
-                              <Badge variant="outline">Upcoming</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                Date
-                              </span>
-                              <span className="font-medium">{contest.date}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                Time
-                              </span>
-                              <span className="font-medium">{contest.time}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Duration</span>
-                              <span className="font-medium">{contest.duration}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Problems</span>
-                              <span className="font-medium">{contest.problems}</span>
-                            </div>
-                          </CardContent>
-                          <CardFooter>
-                            <Button variant="outline" className="w-full">
-                              Set Reminder
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      </motion.div>
-                    ))}
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  Start Date
+                                </span>
+                                <span className="font-medium">
+                                  {new Date(contest.startTime).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  Start Time
+                                </span>
+                                <span className="font-medium">
+                                  {new Date(contest.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Duration</span>
+                                <span className="font-medium">{calculateDuration(contest.startTime, contest.endTime)}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Code className="h-12 w-12 text-muted-foreground mb-4" />
+                        <h3 className="font-medium text-lg">No Scheduled Contests</h3>
+                        <p className="text-muted-foreground">Check back later for upcoming contests.</p>
+                      </div>
+                    )}
                   </TabsContent>
 
                   {/* Past Contests */}
                   <TabsContent value="past" className="space-y-4">
-                    {mockContests.past.map((contest) => (
-                      <motion.div
-                        key={contest.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle>{contest.title}</CardTitle>
-                                <CardDescription>{contest.batch}</CardDescription>
+                    {isLoadingContests ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />
+                        <h3 className="font-medium text-lg">Loading contests...</h3>
+                      </div>
+                    ) : contests.closed.length > 0 ? (
+                      contests.closed.map((contest) => (
+                        <motion.div
+                          key={contest.contestID}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <CardTitle>{generateContestName(contest.startTime)}</CardTitle>
+                                  <CardDescription>{contest.contestName}</CardDescription>
+                                </div>
+                                <Badge variant="outline" className="bg-gray-200 dark:bg-gray-700">Closed</Badge>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Trophy className="h-4 w-4 text-yellow-500" />
-                                <span className="font-medium">Rank: {contest.rank}</span>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  Date
+                                </span>
+                                <span className="font-medium">
+                                  {new Date(contest.startTime).toLocaleDateString()}
+                                </span>
                               </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                Date
-                              </span>
-                              <span className="font-medium">{contest.date}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Duration</span>
-                              <span className="font-medium">{contest.duration}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Problems</span>
-                              <span className="font-medium">{contest.problems}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Score</span>
-                              <span className="font-medium">{contest.score}/100</span>
-                            </div>
-                          </CardContent>
-                          <CardFooter>
-                            <Link to={`/contest/${contest.id}`} className="w-full">
-                              <Button variant="outline" className="w-full">
-                                View Solutions
-                              </Button>
-                            </Link>
-                          </CardFooter>
-                        </Card>
-                      </motion.div>
-                    ))}
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Duration</span>
+                                <span className="font-medium">{calculateDuration(contest.startTime, contest.endTime)}</span>
+                              </div>
+                            </CardContent>
+                            <CardFooter>
+                              <Link to={`/contest/${contest.contestID}`} className="w-full">
+                                <Button variant="outline" className="w-full">
+                                  View Contest
+                                </Button>
+                              </Link>
+                            </CardFooter>
+                          </Card>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Code className="h-12 w-12 text-muted-foreground mb-4" />
+                        <h3 className="font-medium text-lg">No Past Contests</h3>
+                        <p className="text-muted-foreground">You haven't participated in any contests yet.</p>
+                      </div>
+                    )}
                   </TabsContent>
                 </Tabs>
               </TabsContent>
@@ -710,7 +738,7 @@ function StudentDashboard() {
                   </div>
                   <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
                     <Trophy className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">12</span>
+                    <span className="text-2xl font-bold">{contests.closed.length}</span>
                     <span className="text-xs text-muted-foreground">Contests</span>
                   </div>
                   <div className="flex flex-col items-center justify-center p-3 border rounded-lg">

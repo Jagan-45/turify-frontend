@@ -69,6 +69,7 @@ function LoginForm() {
         toast.success("Login successful!");
         if (userRole === "ROLE_STUDENT") {
           const username = values.mailId.split(".")[0];
+          localStorage.setItem("username", username);
           navigate(`/student-dashboard/${username}`);
         } else if (userRole === "ROLE_STAFF") {
           const username = values.mailId.split(".")[0];

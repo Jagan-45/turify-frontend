@@ -1,223 +1,244 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams, Link } from "react-router-dom"
-import { ArrowLeft, CheckCircle, ChevronDown, Code2, Copy, Play, Send, Terminal } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { useParams, useNavigate } from "react-router-dom"
+import { ArrowLeft, Code2, Loader2, Play, Save } from "lucide-react"
+import { toast } from "react-toastify"
+import ReactMarkdown from "react-markdown"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism"
+import Editor from "@monaco-editor/react"
 
 import { Button } from "./ui/button"
 import { ModeToggle } from "./mode-toggle"
-import { Badge } from "./ui/badge"
 import { Separator } from "./ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
-import { useToast } from "../components/hooks/use-toast"
-import { useNavigate } from "react-router-dom"
+import { Card } from "./ui/card"
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs"
+import { useTheme } from "../components/theme-provider"
 import useValidToken from "../components/hooks/useValidToken"
-
-
-// Mock problem data
-const mockProblems = {
-  1: {
-    id: "1",
-    title: "Two Sum",
-    difficulty: "Easy",
-    tags: ["Arrays", "Hash Table"],
-    description: `
-      Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-      
-      You may assume that each input would have exactly one solution, and you may not use the same element twice.
-      
-      You can return the answer in any order.
-    `,
-    examples: [
-      {
-        input: "nums = [2,7,11,15], target = 9",
-        output: "[0,1]",
-        explanation: "Because nums[0] + nums[1] == 9, we return [0, 1].",
-      },
-      {
-        input: "nums = [3,2,4], target = 6",
-        output: "[1,2]",
-        explanation: "Because nums[1] + nums[2] == 6, we return [1, 2].",
-      },
-      {
-        input: "nums = [3,3], target = 6",
-        output: "[0,1]",
-        explanation: "Because nums[0] + nums[1] == 6, we return [0, 1].",
-      },
-    ],
-    constraints: [
-      "2 <= nums.length <= 10^4",
-      "-10^9 <= nums[i] <= 10^9",
-      "-10^9 <= target <= 10^9",
-      "Only one valid answer exists.",
-    ],
-  },
-  2: {
-    id: "2",
-    title: "Valid Parentheses",
-    difficulty: "Easy",
-    tags: ["Stack", "String"],
-    description: `
-      Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid.
-      
-      An input string is valid if:
-      
-      1. Open brackets must be closed by the same type of brackets.
-      2. Open brackets must be closed in the correct order.
-      3. Every close bracket has a corresponding open bracket of the same type.
-    `,
-    examples: [
-      {
-        input: 's = "()"',
-        output: "true",
-      },
-      {
-        input: 's = "()[]{}"',
-        output: "true",
-      },
-      {
-        input: 's = "(]"',
-        output: "false",
-      },
-    ],
-    constraints: ["1 <= s.length <= 10^4", "s consists of parentheses only '()[]{}'."],
-  },
-  3: {
-    id: "3",
-    title: "Valid Parentheses",
-    difficulty: "Easy",
-    tags: ["Stack", "String"],
-    description: `
-      Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid.
-      
-      An input string is valid if:
-      
-      1. Open brackets must be closed by the same type of brackets.
-      2. Open brackets must be closed in the correct order.
-      3. Every close bracket has a corresponding open bracket of the same type.
-    `,
-    examples: [
-      {
-        input: 's = "()"',
-        output: "true",
-      },
-      {
-        input: 's = "()[]{}"',
-        output: "true",
-      },
-      {
-        input: 's = "(]"',
-        output: "false",
-      },
-    ],
-    constraints: ["1 <= s.length <= 10^4", "s consists of parentheses only '()[]{}'."],
-  },
-}
+import useContestToken from "../components/hooks/use-contest-token"
 
 function ProblemPage() {
-  const { id } = useParams()
-  const [problem, setProblem] = useState(null)
-  const [code, setCode] = useState("")
-  const [language, setLanguage] = useState("javascript")
-  const [output, setOutput] = useState("")
-  const [isRunning, setIsRunning] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
+  const { contestId, problemId } = useParams()
   const navigate = useNavigate()
   const isValidToken = useValidToken()
-  if (!isValidToken) {
-    navigate("/login")
-  }
- 
-  const userRole = localStorage.getItem("userRole")
-  if (userRole !== "ROLE_STUDENT" || !userRole) {
-    return <h1>Access Denied</h1>
-  }
-          
-  
+  const { isValid: isContestTokenValid, isLoading: isContestTokenLoading } = useContestToken()
+  const { theme } = useTheme()
 
+  const [isLoading, setIsLoading] = useState(true)
+  const [problemData, setProblemData] = useState("")
+  const [code, setCode] = useState("// Write your code here\n")
+  const [language, setLanguage] = useState("java")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const editorRef = useRef(null)
+
+  // Check authentication and authorization
   useEffect(() => {
-    const fetchProblem = () => {
-      const problem = mockProblems[id]
-      console.log(mockProblems[id])
-      // if (!problem) {
-      //   useToast({
-      //     title: "Problem not found",
-      //     description: `No problem found for ID: ${id}`,
-      //     variant: "destructive",
-      //   })
-      //   return
-      // }
-      setProblem(problem)
+    const checkAuth = async () => {
+      // Check if user is logged in
+      if (!isValidToken) {
+        toast.error("You need to be logged in")
+        navigate("/login")
+        return
+      }
 
-      // Set default code based on language
-     
+      // Check if user is a student
+      const userRole = localStorage.getItem("userRole")
+      if (!userRole || userRole !== "ROLE_STUDENT") {
+        toast.error("Access denied")
+        navigate("/")
+        return
+      }
+
+      // Check if contest token is valid
+      if (!isContestTokenLoading && !isContestTokenValid) {
+        toast.error("Your contest session has expired")
+        navigate(`/contest/${contestId}`)
+        return
+      }
     }
 
-    fetchProblem()
-  }, [id]) // Added toast to dependencies
+    checkAuth()
+  }, [isValidToken, isContestTokenValid, isContestTokenLoading, navigate, contestId])
 
-//   useEffect(()=>{
-//     setTimeout(()=>{},1000)
-//     console.log(problem)
-//      if (language === "javascript") {
-//         setCode(`function ${problem.title.toLowerCase().replace(/\s+/g, "")}(${problem.title === "Two Sum" ? "nums, target" : "s"}) {
-//   // Your solution here
-// }`)
-//       } else if (language === "python") {
-//         setCode(`def ${problem.title.toLowerCase().replace(/\s+/g, "")}(${problem.title === "Two Sum" ? "nums, target" : "s"}):
-//     # Your solution here
-//     pass`)
-//       }
-//   },[language,problem])
+  
+  useEffect(() => {
+    const fetchProblemData = async () => {
+      if (!isValidToken || !isContestTokenValid) return
 
-  const runCode = () => {
-    setIsRunning(true)
-    setOutput("")
+      setIsLoading(true)
+      try {
+        const response = await fetch(
+          `http://localhost:8081/api/v0/contest/contest-problem?contestId=${contestId}&problemId=${problemId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("contestToken")}`,
+            },
+          },
+        )
+        console.log(response)
 
-    // Simulate code execution
-    setTimeout(() => {
-      setOutput(
-        "Running test cases...\n\nTest Case 1: PASSED\nTest Case 2: PASSED\nTest Case 3: PASSED\n\nAll test cases passed!",
-      )
-      setIsRunning(false)
+        if (response.ok) {
+          // const data = await response.text()
+            const responseData = await response.json();
+            console.log(responseData.data)
+            setProblemData(responseData.data);
+        } else {
+          toast.error("Failed to fetch problem")
+          console.log(problemId)
+          // navigate(`/contest/${contestId}`)
+        }
+      } catch (error) {
+        console.error("Error fetching problem:", error)
+        toast.error("Error fetching problem")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-      useToast({
-        title: "Code executed successfully",
-        description: "All test cases passed!",
-      })
-    }, 1500)
+    if (!isContestTokenLoading) {
+      fetchProblemData()
+    }
+  }, [contestId, problemId, isValidToken, isContestTokenValid, isContestTokenLoading, navigate])
+
+  // Handle editor mount
+  const handleEditorDidMount = (editor, monaco) => {
+    editorRef.current = editor
   }
 
-  const submitCode = () => {
+  // Handle code change
+  const handleCodeChange = (value) => {
+    setCode(value)
+  }
+
+  // Handle language change
+  const handleLanguageChange = (value) => {
+    setLanguage(value)
+
+    // Set default code template based on language
+    switch (value) {
+      case "java":
+        setCode(`// Java solution
+public class Main {
+    public static void main(String[] args) {
+        // Your solution here
+    }
+}`)
+        break
+      case "python":
+        setCode(`# Python solution
+def Main():
+    # Your solution here
+    pass
+
+if __name__ == "__main__":
+    Main()`)
+        break
+      case "javascript":
+        setCode(`// JavaScript solution
+function Main() {
+    // Your solution here
+}
+
+Main();`)
+        break
+      case "cpp":
+        setCode(`// C++ solution
+#include <iostream>
+using namespace std;
+
+int main() {
+    // Your solution here
+    return 0;
+}`)
+        break
+      default:
+        setCode("// Write your code here\n")
+    }
+  }
+
+  // Handle code submission
+  const handleSubmit = async () => {
+    if (!code.trim()) {
+      toast.error("Please write some code before submitting")
+      return
+    }
+
     setIsSubmitting(true)
-    setOutput("")
+    try {
+      const languageIdMap = {
+        java: 62,
+        python: 71,
+        javascript: 63,
+        cpp: 54,
+      }
+      console.log(code)
+      const languageId = languageIdMap[language] || 62 // Default to Java if language is not mapped
 
-    // Simulate code submission
-    setTimeout(() => {
-      setOutput(
-        "Submitting solution...\n\nRuntime: 76 ms\nMemory: 42.5 MB\n\nYour solution beats 85% of JavaScript submissions.\n\nAccepted!",
-      )
-      setIsSubmitting(false)
-
-      useToast({
-        title: "Solution accepted!",
-        description: "Your solution beats 85% of JavaScript submissions.",
+      const response = await fetch("http://localhost:8081/api/v0/contest/submit-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("contestToken")}`,
+        },
+        body: JSON.stringify({
+          contestId,
+          problemId,
+          code,
+          languageId,
+        }),
       })
-    }, 2000)
+
+      if (response.ok) {
+        toast.success("Solution submitted successfully")
+        // navigate(`/contest/${contestId}`)
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || "Error submitting solution")
+      }
+    } catch (error) {
+      console.error("Error submitting solution:", error)
+      toast.error("Error submitting solution")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const copyCode = () => {
-    navigator.clipboard.writeText(code)
-    useToast({
-      title: "Code copied",
-      description: "Code has been copied to clipboard.",
-    })
+  // Handle code run
+  const handleRun = async () => {
+    if (!code.trim()) {
+      toast.error("Please write some code before running")
+      return
+    }
+
+    toast.info("Running code... (This is a mock implementation)")
   }
 
-  if (!problem) {
-    return <div className="flex justify-center items-center h-screen">Loading problem...</div>
+  // Custom renderer for code blocks in markdown
+  const components = {
+    code({ node, inline, className, children, ...props }) {
+      const match = /language-(\w+)/.exec(className || "")
+      return !inline && match ? (
+        <SyntaxHighlighter style={theme === "dark" ? vscDarkPlus : vs} language={match[1]} PreTag="div" {...props}>
+          {String(children).replace(/\n$/, "")}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    },
+  }
+
+  if (isLoading || isContestTokenLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-12 w-12 text-primary animate-spin mr-2" />
+        <span>Loading problem...</span>
+      </div>
+    )
   }
 
   return (
@@ -225,10 +246,13 @@ function ProblemPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-          <button onClick={() => Navigate(-1)} className="flex items-center gap-2 cursor-pointer">
+            <button
+              onClick={() => navigate(`/contest/${contestId}`)}
+              className="flex items-center gap-2 cursor-pointer"
+            >
               <ArrowLeft className="h-4 w-4" />
-              <span className="font-medium cursor-pointer">Go Back</span>
-          </button>
+              <span className="font-medium cursor-pointer">Back to Contest</span>
+            </button>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-2 font-bold text-xl">
               <Code2 className="h-6 w-6" />
@@ -240,148 +264,65 @@ function ProblemPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 container py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <main className="flex-1 container py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-8rem)]">
           {/* Problem Description */}
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold">{mockProblems[1].title}</h1>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge
-                  className={
-                    mockProblems[1].difficulty === "Easy"
-                      ? "bg-green-500 hover:bg-green-600"
-                      : mockProblems[1].difficulty === "Medium"
-                        ? "bg-yellow-500 hover:bg-yellow-600"
-                        : "bg-red-500 hover:bg-red-600"
-                  }
-                >
-                  {mockProblems[1].difficulty}
-                </Badge>
-                {mockProblems[1].tags.map((tag) => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
+          <Card className="p-4 overflow-auto">
+            <div className="prose dark:prose-invert max-w-none">
+              <ReactMarkdown components={components}>{problemData}</ReactMarkdown>
             </div>
-
-            <div className="space-y-4">
-              <h2 className="text-lg font-medium">Description</h2>
-              <div className="whitespace-pre-line text-muted-foreground">{mockProblems[1].description}</div>
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-lg font-medium">Examples</h2>
-              <div className="space-y-4">
-                {mockProblems[1].examples.map((example, index) => (
-                  <div key={index} className="border rounded-md p-4 space-y-2">
-                    <div>
-                      <span className="font-medium">Input: </span>
-                      <code className="bg-muted px-1 py-0.5 rounded text-sm">{example.input}</code>
-                    </div>
-                    <div>
-                      <span className="font-medium">Output: </span>
-                      <code className="bg-muted px-1 py-0.5 rounded text-sm">{example.output}</code>
-                    </div>
-                    {example.explanation && (
-                      <div>
-                        <span className="font-medium">Explanation: </span>
-                        <span className="text-muted-foreground">{example.explanation}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-lg font-medium">Constraints</h2>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                {mockProblems[1].constraints.map((constraint, index) => (
-                  <li key={index}>{constraint}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          </Card>
 
           {/* Code Editor */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="javascript">JavaScript</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="java">Java</SelectItem>
-                    <SelectItem value="cpp">C++</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="icon" onClick={copyCode}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="gap-2" onClick={runCode} disabled={isRunning || isSubmitting}>
-                  <Play className="h-4 w-4" />
+          <div className="flex flex-col h-full">
+            <div className="flex justify-between items-center mb-2">
+              <Tabs defaultValue="java" value={language} onValueChange={handleLanguageChange}>
+                <TabsList>
+                  <TabsTrigger value="java">Java</TabsTrigger>
+                  <TabsTrigger value="python">Python</TabsTrigger>
+                  <TabsTrigger value="javascript">JavaScript</TabsTrigger>
+                  <TabsTrigger value="cpp">C++</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleRun} disabled={isSubmitting}>
+                  <Play className="h-4 w-4 mr-1" />
                   Run
                 </Button>
-                <Button className="gap-2" onClick={submitCode} disabled={isRunning || isSubmitting}>
-                  <Send className="h-4 w-4" />
-                  Submit
+                <Button onClick={handleSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-1" />
+                      Submit
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
 
-            <div className="border rounded-md overflow-hidden">
-              <div className="bg-muted p-2 border-b">
-                <span className="text-sm font-medium">Code Editor</span>
-              </div>
-              <textarea
-                className="w-full h-[400px] p-4 font-mono text-sm bg-background focus:outline-none resize-none"
+            <Card className="flex-1 overflow-hidden">
+              <Editor
+                height="100%"
+                defaultLanguage="java"
+                language={language}
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={handleCodeChange}
+                onMount={handleEditorDidMount}
+                theme={theme === "dark" ? "vs-dark" : "light"}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                }}
               />
-            </div>
-
-            <Collapsible className="border rounded-md">
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted">
-                <div className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4" />
-                  <span className="font-medium">Console Output</span>
-                </div>
-                <ChevronDown className="h-4 w-4" />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="p-4 font-mono text-sm whitespace-pre-line min-h-[100px] max-h-[200px] overflow-auto">
-                  {isRunning && (
-                    <div className="flex items-center gap-2">
-                      <span className="animate-spin">⟳</span> Running code...
-                    </div>
-                  )}
-                  {isSubmitting && (
-                    <div className="flex items-center gap-2">
-                      <span className="animate-spin">⟳</span> Submitting solution...
-                    </div>
-                  )}
-                  {!isRunning && !isSubmitting && output ? (
-                    output.includes("Accepted") ? (
-                      <div className="text-green-500">
-                        <CheckCircle className="h-4 w-4 inline mr-2" />
-                        {output}
-                      </div>
-                    ) : (
-                      output
-                    )
-                  ) : (
-                    !isRunning && !isSubmitting && "Run your code to see output here."
-                  )}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+            </Card>
           </div>
         </div>
       </main>

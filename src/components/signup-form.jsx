@@ -54,7 +54,7 @@ function SignupForm() {
           password: values.password,
         }),
       })
-
+      localStorage.setItem('username', values.username)
       const data = await response.json()
       console.log(data)
 
