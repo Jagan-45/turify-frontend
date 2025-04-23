@@ -209,11 +209,48 @@ int main() {
   // Handle code run
   const handleRun = async () => {
     if (!code.trim()) {
-      toast.error("Please write some code before running")
+      toast.error("Please write some code before submitting")
       return
     }
 
-    toast.info("Running code... (This is a mock implementation)")
+    setIsSubmitting(true)
+    try {
+      const languageIdMap = {
+        java: 62,
+        python: 71,
+        javascript: 63,
+        cpp: 54,
+      }
+      console.log(code)
+      const languageId = languageIdMap[language] || 62 // Default to Java if language is not mapped
+
+      const response = await fetch("http://localhost:8081/api/v0/contest/submit-sample", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("contestToken")}`,
+        },
+        body: JSON.stringify({
+          contestId,
+          problemId,
+          code,
+          languageId,
+        }),
+      })
+
+      if (response.ok) {
+        toast.success("Solution submitted successfully")
+        // navigate(`/contest/${contestId}`)
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || "Error submitting solution")
+      }
+    } catch (error) {
+      console.error("Error submitting solution:", error)
+      toast.error("Error submitting solution")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Custom renderer for code blocks in markdown
