@@ -64,6 +64,7 @@ function TeacherDashboard() {
   const [contests, setContests] = useState([]) // State for contests
   const [updateBatches, setUpdateBatches] = useState([])
   const [taskId, setTaskId] = useState("")
+  const [contestId, setContestId] = useState("")
   const [loading, setLoading] = useState({
     batches: true,
     tasks: true,
@@ -212,6 +213,7 @@ function TeacherDashboard() {
   const handleUpdateContest = (contest) => {
     setOpenUpdateContest(true)
     setMethod("PUT")
+    setContestId(contest.contestID)
     // Set any other necessary state for updating the contest
   }
 
@@ -814,6 +816,7 @@ function TeacherDashboard() {
         batches={batches}
         isCreated={setBatchCreated}
         method="PUT" // Set method to PUT for updating
+        contestId={contestId} // Pass the contest ID to the dialog
       />
     </div>
   )

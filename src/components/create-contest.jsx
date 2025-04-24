@@ -22,38 +22,61 @@ import { cn } from "../lib/utils"
 import { Badge } from "./ui/badge"
 import { toast } from "react-toastify"
 
-const formSchema = z.object({
-  title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  startDate: z.date({ required_error: "Please select a start date." }),
-  startTime: z.string({ required_error: "Please select a start time." }),
-  endDate: z.date({ required_error: "Please select an end date." }),
-  endTime: z.string({ required_error: "Please select an end time." }),
-  batch: z.array(z.string()).min(1, { message: "Please select at least one batch." }),
-  topicCount: z.number().min(1, { message: "Please enter the number of topics." }),
-  topics: z
-    .array(
-      z.object({
-        topicTag: z.string().min(1, { message: "Please select a topic." }),
-        difficulty: z.string().min(1, { message: "Please select a difficulty." }),
-        // We don't need these in the schema since we'll add them automatically
-        // point: z.number().min(1, { message: "Please enter points." }).optional(),
-        // count: z.number().min(1, { message: "Please enter the count of problems." }).optional(),
-      }),
-    )
-    .min(1, { message: "At least one topic is required." }),
-})
-
-export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated, method = "POST" }) {
+export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated, method = "POST", contestData, contestId }) {
   const navigate = useNavigate()
   const isValidToken = useValidToken()
 
   const [isLoading, setIsLoading] = useState(false)
   const [openBatchSelector, setOpenBatchSelector] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [accessDenied, setAccessDenied] = useState(false)
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+  // Define schema based on method
+  const createSchema = z.object({
+    title: z.string().min(3, { message: "Title must be at least 3 characters." }),
+    startDate: z.date({ required_error: "Please select a start date." }),
+    startTime: z.string({ required_error: "Please select a start time." }),
+    endDate: z.date({ required_error: "Please select an end date." }),
+    endTime: z.string({ required_error: "Please select an end time." }),
+    batch: z.array(z.string()).min(1, { message: "Please select at least one batch." }),
+    topicCount: z.number().min(1, { message: "Please enter the number of topics." }),
+    topics: z
+      .array(
+        z.object({
+          topicTag: z.string().min(1, { message: "Please select a topic." }),
+          difficulty: z.string().min(1, { message: "Please select a difficulty." }),
+        }),
+      )
+      .min(1, { message: "At least one topic is required." }),
+  })
+
+  const updateSchema = z.object({
+    contestId: z.string(),
+    title: z.string().min(3, { message: "Title must be at least 3 characters." }),
+    startDate: z.date({ required_error: "Please select a start date." }),
+    startTime: z.string({ required_error: "Please select a start time." }),
+    endDate: z.date({ required_error: "Please select an end date." }),
+    endTime: z.string({ required_error: "Please select an end time." }),
+  })
+
+  // Set default values based on method
+  const getDefaultValues = () => {
+    if (method === "PUT" && contestData) {
+      // Parse dates from contestData if available
+      const startDateTime = contestData.startTime ? new Date(contestData.startTime) : undefined
+      const endDateTime = contestData.endTime ? new Date(contestData.endTime) : undefined
+
+      return {
+        contestId: contestData.contestId || "",
+        title: contestData.contestName || "",
+        startDate: startDateTime,
+        startTime: startDateTime ? format(startDateTime, "HH:mm") : "",
+        endDate: endDateTime,
+        endTime: endDateTime ? format(endDateTime, "HH:mm") : "",
+      }
+    }
+
+    return {
       title: "",
       startDate: undefined,
       startTime: "",
@@ -62,17 +85,46 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
       batch: [],
       topicCount: 1,
       topics: [{ topicTag: "", difficulty: "" }],
-    },
+    }
+  }
+
+  const form = useForm({
+    resolver: zodResolver(method === "PUT" ? updateSchema : createSchema),
+    defaultValues: getDefaultValues(),
   })
 
+  // Update form when contestData changes
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole")
-    if (!userRole || userRole !== "ROLE_STAFF" || !isValidToken) {
-      navigate("/login")
+    if (method === "PUT" && contestData) {
+      const startDateTime = contestData.startTime ? new Date(contestData.startTime) : undefined
+      const endDateTime = contestData.endTime ? new Date(contestData.endTime) : undefined
+
+      form.reset({
+        contestId: contestData.contestId || "",
+        title: contestData.contestName || "",
+        startDate: startDateTime,
+        startTime: startDateTime ? format(startDateTime, "HH:mm") : "",
+        endDate: endDateTime,
+        endTime: endDateTime ? format(endDateTime, "HH:mm") : "",
+      })
     }
+  }, [contestData, method, form])
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const userRole = localStorage.getItem("userRole")
+      if (!userRole || userRole !== "ROLE_STAFF" || !isValidToken) {
+        setAccessDenied(true)
+        navigate("/login")
+      } else {
+        setAccessDenied(false)
+      }
+    }
+
+    checkAccess()
   }, [isValidToken, navigate])
 
-  if (!localStorage.getItem("userRole") || localStorage.getItem("userRole") !== "ROLE_STAFF") {
+  if (accessDenied) {
     return <h1>Access Denied</h1>
   }
 
@@ -96,56 +148,57 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
       let formattedValues
 
       if (method === "PUT") {
-      // For update, only send contestId, startTime, and endTime
-      formattedValues = {
-        contestId: values.contestId, // Ensure contestId is part of the form values
-        startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
-        endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
-      }
+        // For update, send contestId, title, startTime, and endTime
+        formattedValues = {
+          contestId: contestId,
+          contestName: values.title,
+          startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
+          endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
+        }
       } else {
-      // For create, include all fields
-      const topicsWithDefaults = values.topics.map((topic) => ({
-        ...topic,
-        point: 10, // Default value of 10 for points
-        count: 4, // Default value of 3 for count
-      }))
+        // For create, include all fields
+        const topicsWithDefaults = values.topics.map((topic) => ({
+          ...topic,
+          point: topic.difficulty === "easy" ? 10 : topic.difficulty === "medium" ? 20 : 30,
+          count: 4, // Default value of 4 for count
+        }))
 
-      formattedValues = {
-        contestName: values.title,
-        startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
-        endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
-        assignToBatches: values.batch,
-        req: topicsWithDefaults.map((topic) => ({
-        topicTag: topic.topicTag,
-        difficulty: topic.difficulty,
-        point: topic.difficulty === "easy" ? 10 : topic.difficulty === "medium" ? 20 : 30,
-        count: topic.count,
-        })),
-      }
+        formattedValues = {
+          contestName: values.title,
+          startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
+          endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
+          assignToBatches: values.batch,
+          req: topicsWithDefaults.map((topic) => ({
+            topicTag: topic.topicTag,
+            difficulty: topic.difficulty,
+            point: topic.difficulty === "easy" ? 10 : topic.difficulty === "medium" ? 20 : 30,
+            count: 4,
+          })),
+        }
       }
 
       console.log("Sending request with data:", formattedValues)
-      const response = await fetch(
-      method === "PUT" ? "http://localhost:8081/api/v0/contest" : "http://localhost:8081/api/v0/contest",
-      {
+      const response = await fetch("http://localhost:8081/api/v0/contest", {
         method: method,
         headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
         body: JSON.stringify(formattedValues),
-      },
-      )
+      })
 
       if (!response.ok) {
-      throw new Error("Failed to process contest")
+        throw new Error(`Failed to ${method === "PUT" ? "update" : "create"} contest`)
       }
 
-      isCreated((prev) => !prev)
+      if (typeof isCreated === "function") {
+        isCreated((prev) => !prev)
+      }
+
       toast.success(
-      method === "PUT"
-        ? `Contest updated successfully from ${formattedValues.startTime} to ${formattedValues.endTime}`
-        : `${formattedValues.contestName} scheduled from ${formattedValues.startTime} to ${formattedValues.endTime}`,
+        method === "PUT"
+          ? `Contest updated successfully`
+          : `${formattedValues.contestName} scheduled from ${formattedValues.startTime} to ${formattedValues.endTime}`,
       )
       form.reset()
       onOpenChange(false)
@@ -158,21 +211,23 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
   }
 
   useEffect(() => {
-    const count = form.watch("topicCount") || 1
-    const currentTopics = form.getValues("topics") || []
+    if (method === "POST") {
+      const count = form.watch("topicCount") || 1
+      const currentTopics = form.getValues("topics") || []
 
-    if (count > currentTopics.length) {
-      // Add new topics
-      const newTopics = [...currentTopics]
-      for (let i = currentTopics.length; i < count; i++) {
-        newTopics.push({ topicTag: "", difficulty: "" })
+      if (count > currentTopics.length) {
+        // Add new topics
+        const newTopics = [...currentTopics]
+        for (let i = currentTopics.length; i < count; i++) {
+          newTopics.push({ topicTag: "", difficulty: "" })
+        }
+        form.setValue("topics", newTopics)
+      } else if (count < currentTopics.length) {
+        // Remove excess topics
+        form.setValue("topics", currentTopics.slice(0, count))
       }
-      form.setValue("topics", newTopics)
-    } else if (count < currentTopics.length) {
-      // Remove excess topics
-      form.setValue("topics", currentTopics.slice(0, count))
     }
-  }, [form.watch("topicCount")])
+  }, [form.watch("topicCount"), method, form])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -185,6 +240,8 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+            {method === "PUT" && <input type="hidden" {...form.register("contestId")} />}
+
             <FormField
               control={form.control}
               name="title"
@@ -219,7 +276,7 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => date < new Date() && method === "POST"}
                         initialFocus
                       />
                     </PopoverContent>
@@ -274,7 +331,7 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => date < new Date() && method === "POST"}
                         initialFocus
                       />
                     </PopoverContent>
@@ -384,87 +441,92 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                     />
 
                     <div className="mt-3 text-sm text-muted-foreground">
-                      <p>Default points: Depends on the difficulty level</p>
+                      <p>Points: Easy (10), Medium (20), Hard (30)</p>
                       <p>Default problem count: 4</p>
                     </div>
                   </div>
                 ))}
-                            <FormField
-              control={form.control}
-              name="batch"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Batches</FormLabel>
-                  <Popover open={openBatchSelector} onOpenChange={setOpenBatchSelector}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant="outline" className="w-full justify-between">
-                          {field.value?.length > 0 ? `${field.value.length} selected` : "Select batches"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search batches..." onValueChange={setSearchTerm} />
-                        <CommandList>
-                          <CommandEmpty>No batch found.</CommandEmpty>
-                          <CommandGroup>
-                            <ScrollArea className="h-60">
-                              {batches
-                                .filter((b) => b.toLowerCase().includes(searchTerm.toLowerCase()))
-                                .map((batch) => (
-                                  <CommandItem key={batch} onSelect={() => toggleBatch(batch)}>
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        field.value?.includes(batch) ? "opacity-100" : "opacity-0",
-                                      )}
-                                    />
-                                    {batch}{" "}
-                                  </CommandItem>
-                                ))}
-                            </ScrollArea>
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
 
-                  {field.value?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {field.value.map((batch) => (
-                        <Badge key={batch} variant="secondary" className="px-2 py-1">
-                          {batch}
-                          <button
-                            className="ml-1 text-xs hover:text-destructive"
-                            type="button"
-                            onClick={() => toggleBatch(batch)}
-                          >
-                            ✕
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
+                <FormField
+                  control={form.control}
+                  name="batch"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Batches</FormLabel>
+                      <Popover open={openBatchSelector} onOpenChange={setOpenBatchSelector}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button variant="outline" className="w-full justify-between">
+                              {field.value?.length > 0 ? `${field.value.length} selected` : "Select batches"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search batches..." onValueChange={setSearchTerm} />
+                            <CommandList>
+                              <CommandEmpty>No batch found.</CommandEmpty>
+                              <CommandGroup>
+                                <ScrollArea className="h-60">
+                                  {batches
+                                    .filter((b) => b.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    .map((batch) => (
+                                      <CommandItem key={batch} onSelect={() => toggleBatch(batch)}>
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            field.value?.includes(batch) ? "opacity-100" : "opacity-0",
+                                          )}
+                                        />
+                                        {batch}{" "}
+                                      </CommandItem>
+                                    ))}
+                                </ScrollArea>
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+
+                      {field.value?.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {field.value.map((batch) => (
+                            <Badge key={batch} variant="secondary" className="px-2 py-1">
+                              {batch}
+                              <button
+                                className="ml-1 text-xs hover:text-destructive"
+                                type="button"
+                                onClick={() => toggleBatch(batch)}
+                              >
+                                ✕
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      <FormMessage />
+                    </FormItem>
                   )}
-
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                />
               </>
             )}
 
-
-
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? (method === "POST" ? "Creating..." : "Updating...") : method === "PUT" ? "Update Contest" : "Create Contest"}
+                {isLoading
+                  ? method === "POST"
+                    ? "Creating..."
+                    : "Updating..."
+                  : method === "PUT"
+                    ? "Update Contest"
+                    : "Create Contest"}
               </Button>
             </DialogFooter>
           </form>
-          </Form>
-        </DialogContent>
+        </Form>
+      </DialogContent>
     </Dialog>
   )
 }
