@@ -3,7 +3,22 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Link, useNavigate } from "react-router-dom"
-import { Award, Calendar, CheckCircle, ChevronLeft, ChevronRight, Clock, Code, Code2, ExternalLink, LogOut, Settings, Trophy, User, Loader2 } from 'lucide-react'
+import {
+  Award,
+  Calendar,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Code,
+  Code2,
+  ExternalLink,
+  LogOut,
+  Settings,
+  Trophy,
+  User,
+  Loader2,
+} from "lucide-react"
 
 import { Button } from "./ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card"
@@ -11,22 +26,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { ModeToggle } from "./mode-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { Badge } from "./ui/badge"
-import { Progress } from "./ui/progress"
 import { toast } from "react-toastify"
 import useValidToken from "../components/hooks/useValidToken"
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom"
 
-// Mock profile data
-const mockProfile = {
-  name: "Aditya Singh",
-  username: "aditya_singh",
-  department: "Computer Science",
-  year: 3,
-  problemsSolved: 127,
-  rating: 1842,
-  level: "Expert",
-  streak: 15,
-}
+// Fetch profile data
 
 function StudentDashboard() {
   const navigate = useNavigate()
@@ -40,12 +44,13 @@ function StudentDashboard() {
   const [completingTask, setCompletingTask] = useState(null)
   const [isStudent, setIsStudent] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
-  const location = useLocation();
+  const location = useLocation()
+  
 
   const [contests, setContests] = useState({
     active: [],
     scheduled: [],
-    closed: []
+    closed: [],
   })
   const [isLoadingContests, setIsLoadingContests] = useState(false)
 
@@ -93,17 +98,17 @@ function StudentDashboard() {
     const start = new Date(startTime)
     const end = new Date(endTime)
     const diff = end.getTime() - start.getTime()
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    
+
     return `${hours}h ${minutes}m`
   }
 
   // Generate contest name based on day of week
   const generateContestName = (startTime) => {
     const date = new Date(startTime)
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     const dayName = days[date.getDay()]
     return `${dayName} Contest`
   }
@@ -142,7 +147,7 @@ function StudentDashboard() {
           }),
         )
 
-        toast.success("Task marked as complete")  
+        toast.success("Task marked as complete")
       } else if (response.status === 400) {
         toast.error("cannot mark as complete, solve the problem first")
       } else {
@@ -150,7 +155,7 @@ function StudentDashboard() {
       }
     } catch (error) {
       console.error("Error marking task as complete:", error)
-      toast.error("Failed to update task status.")  
+      toast.error("Failed to update task status.")
     } finally {
       setCompletingTask(null)
     }
@@ -160,7 +165,10 @@ function StudentDashboard() {
     const token = localStorage.getItem("accessToken")
     localStorage.removeItem("accessToken")
     localStorage.removeItem("userRole")
-    localStorage.removeItem("contestToken")
+    localStorage.removeItem("userProfile")
+    if(localStorage.getItem("problems")){
+      localStorage.removeItem("problems")
+    }
 
     try {
       const response = await fetch("http://localhost:8081/logout", {
@@ -197,14 +205,14 @@ function StudentDashboard() {
 
       if (response.ok) {
         const result = await response.json()
-        
+
         // Segregate contests by status
         const active = []
         const scheduled = []
         const closed = []
-        
-        result.data.forEach(contest => {
-          switch(contest.status) {
+
+        result.data.forEach((contest) => {
+          switch (contest.status) {
             case "ACTIVE":
               active.push(contest)
               break
@@ -218,11 +226,11 @@ function StudentDashboard() {
               break
           }
         })
-        
+
         setContests({
           active,
           scheduled,
-          closed
+          closed,
         })
       } else {
         console.error("Failed to fetch contests")
@@ -235,6 +243,8 @@ function StudentDashboard() {
       setIsLoadingContests(false)
     }
   }
+
+
 
   // Check authentication and fetch tasks
   useEffect(() => {
@@ -259,14 +269,11 @@ function StudentDashboard() {
     }
   }, [isStudent])
 
-
-
-  
   useEffect(() => {
     if (isStudent) {
-      fetchContests();
+      fetchContests()
     }
-  }, [isStudent, location]);
+  }, [isStudent, location])
 
   // Fetch tasks for the current date
   useEffect(() => {
@@ -308,8 +315,6 @@ function StudentDashboard() {
     }
 
     fetchTasks()
-
-
   }, [currentDate, isStudent, location])
 
   if (accessDenied) {
@@ -327,7 +332,7 @@ function StudentDashboard() {
           <div className="flex items-center gap-4">
             <ModeToggle />
             <Avatar>
-              <AvatarImage src="/placeholder.svg" alt={mockProfile.name} />
+              <AvatarImage src="/placeholder.svg" alt={JSON.parse(localStorage.getItem("userProfile")).username} />
               <AvatarFallback>AS</AvatarFallback>
             </Avatar>
           </div>
@@ -344,45 +349,34 @@ function StudentDashboard() {
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center space-y-2">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="/placeholder.svg" alt={mockProfile.name} />
+                  <AvatarImage src="/placeholder.svg" alt={JSON.parse(localStorage.getItem("userProfile")).username} />
                   <AvatarFallback className="text-xl">AS</AvatarFallback>
                 </Avatar>
                 <div className="text-center">
-                  <h3 className="font-medium text-lg">{mockProfile.name}</h3>
-                  <p className="text-sm text-muted-foreground">@{mockProfile.username}</p>
+                  <h3 className="font-medium text-lg">{JSON.parse(localStorage.getItem("userProfile")).username}</h3>
+                  <p className="text-sm text-muted-foreground">@{JSON.parse(localStorage.getItem("userProfile")).username}</p>
                 </div>
                 <Badge variant="outline" className="bg-primary/10">
-                  {mockProfile.level}
+                  {JSON.parse(localStorage.getItem("userProfile")).rating}
                 </Badge>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Department</span>
-                  <span className="font-medium">{mockProfile.department}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).dept}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Year</span>
-                  <span className="font-medium">{mockProfile.year}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).year}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Problems Solved</span>
-                  <span className="font-medium">{mockProfile.problemsSolved}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Rating</span>
-                  <span className="font-medium">{mockProfile.rating}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).problemSolved}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Current Streak</span>
-                  <span className="font-medium">{mockProfile.streak} days</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).taskStreak} days</span>
                 </div>
-              </div>
-              <div className="pt-2">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Progress to next level</span>
-                  <span className="font-medium">72%</span>
-                </div>
-                <Progress value={72} className="h-2" />
               </div>
             </CardContent>
             <CardFooter className="flex justify-between pt-0">
@@ -449,7 +443,9 @@ function StudentDashboard() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Duration</span>
-                                <span className="font-medium">{calculateDuration(contest.startTime, contest.endTime)}</span>
+                                <span className="font-medium">
+                                  {calculateDuration(contest.startTime, contest.endTime)}
+                                </span>
                               </div>
                             </CardContent>
                             <CardFooter>
@@ -500,9 +496,7 @@ function StudentDashboard() {
                                   <Calendar className="h-4 w-4" />
                                   Start Date
                                 </span>
-                                <span className="font-medium">
-                                  {new Date(contest.startTime).toLocaleDateString()}
-                                </span>
+                                <span className="font-medium">{new Date(contest.startTime).toLocaleDateString()}</span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground flex items-center gap-1">
@@ -510,12 +504,17 @@ function StudentDashboard() {
                                   Start Time
                                 </span>
                                 <span className="font-medium">
-                                  {new Date(contest.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(contest.startTime).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Duration</span>
-                                <span className="font-medium">{calculateDuration(contest.startTime, contest.endTime)}</span>
+                                <span className="font-medium">
+                                  {calculateDuration(contest.startTime, contest.endTime)}
+                                </span>
                               </div>
                             </CardContent>
                           </Card>
@@ -552,7 +551,9 @@ function StudentDashboard() {
                                   <CardTitle>{generateContestName(contest.startTime)}</CardTitle>
                                   <CardDescription>{contest.contestName}</CardDescription>
                                 </div>
-                                <Badge variant="outline" className="bg-gray-200 dark:bg-gray-700">Closed</Badge>
+                                <Badge variant="outline" className="bg-gray-200 dark:bg-gray-700">
+                                  Closed
+                                </Badge>
                               </div>
                             </CardHeader>
                             <CardContent className="space-y-2">
@@ -561,22 +562,16 @@ function StudentDashboard() {
                                   <Calendar className="h-4 w-4" />
                                   Date
                                 </span>
-                                <span className="font-medium">
-                                  {new Date(contest.startTime).toLocaleDateString()}
-                                </span>
+                                <span className="font-medium">{new Date(contest.startTime).toLocaleDateString()}</span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Duration</span>
-                                <span className="font-medium">{calculateDuration(contest.startTime, contest.endTime)}</span>
+                                <span className="font-medium">
+                                  {calculateDuration(contest.startTime, contest.endTime)}
+                                </span>
                               </div>
                             </CardContent>
-                            <CardFooter>
-                              <Link to={`/contest/${contest.contestID}`} className="w-full">
-                                <Button variant="outline" className="w-full">
-                                  View Contest
-                                </Button>
-                              </Link>
-                            </CardFooter>
+                            
                           </Card>
                         </motion.div>
                       ))
@@ -728,12 +723,12 @@ function StudentDashboard() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
                     <Award className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">{mockProfile.rating}</span>
+                    <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).rating}</span>
                     <span className="text-xs text-muted-foreground">Rating</span>
                   </div>
                   <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
                     <Code className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">{mockProfile.problemsSolved}</span>
+                    <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).problemSolved}</span>
                     <span className="text-xs text-muted-foreground">Problems Solved</span>
                   </div>
                   <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
@@ -743,7 +738,7 @@ function StudentDashboard() {
                   </div>
                   <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
                     <User className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">24</span>
+                    <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).globalRank}</span>
                     <span className="text-xs text-muted-foreground">Global Rank</span>
                   </div>
                 </div>

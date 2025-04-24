@@ -1,10 +1,8 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { ArrowLeft, CheckCircle, Clock, Code2, Trophy, Loader2 } from "lucide-react"
-
+import { Download } from "lucide-react"
 import { Button } from "./ui/button"
 import { ModeToggle } from "./mode-toggle"
 import { Separator } from "./ui/separator"
@@ -16,42 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { toast } from "react-toastify"
 import useValidToken from "../components/hooks/useValidToken"
 import useContestToken from "../components/hooks/use-contest-token"
-
-// Mock participants data
-const mockParticipants = [
-  {
-    id: "user-1",
-    username: "aditya_singh",
-    score: 200,
-    problemsSolved: 2,
-    timeTaken: "1h 30m",
-    department: "Computer Science",
-  },
-  {
-    id: "user-2",
-    username: "priya_mehta",
-    score: 180,
-    problemsSolved: 2,
-    timeTaken: "1h 45m",
-    department: "Electrical Engineering",
-  },
-  {
-    id: "user-3",
-    username: "rahul_kumar",
-    score: 150,
-    problemsSolved: 1,
-    timeTaken: "1h 20m",
-    department: "Computer Science",
-  },
-  {
-    id: "user-4",
-    username: "neha_sharma",
-    score: 120,
-    problemsSolved: 1,
-    timeTaken: "1h 50m",
-    department: "Mechanical Engineering",
-  },
-]
 
 function ContestPage() {
   const { id } = useParams()
@@ -66,7 +28,9 @@ function ContestPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [hasContestToken, setHasContestToken] = useState(false)
   const [completedProblems, setCompletedProblems] = useState([])
+  const [leaderboardData, setLeaderboardData] = useState([])
 
+  
   // Check if user has valid token and is a student
   useEffect(() => {
     if (!isValidToken) {
@@ -82,6 +46,7 @@ function ContestPage() {
     }
   }, [isValidToken, navigate])
 
+  
   // Check if user has contest token
   useEffect(() => {
     if (!isContestTokenLoading) {
@@ -89,6 +54,7 @@ function ContestPage() {
     }
   }, [isContestTokenLoading, isContestTokenValid])
 
+  
   // Enter contest and get contest token
   const enterContest = async () => {
     setIsLoading(true)
@@ -103,17 +69,10 @@ function ContestPage() {
 
       if (response.ok) {
         const result = await response.json()
-
-        // Store the JWT token
         localStorage.setItem("accessToken", result.data.jwt)
-
-        // Store the problems in localStorage
         const problemsData = result.data.problems || []
         localStorage.setItem("problems", JSON.stringify(problemsData))
-
-        // Set the problems from the response
         setProblems(problemsData)
-
         setHasContestToken(true)
         toast.success(result.message || "Successfully entered contest")
       } else {
@@ -127,6 +86,7 @@ function ContestPage() {
     }
   }
 
+  
   // Initialize problems from localStorage if present
   useEffect(() => {
     const storedProblems = localStorage.getItem("problems")
@@ -135,6 +95,7 @@ function ContestPage() {
     }
   }, [])
 
+  
   // Fetch contest data
   useEffect(() => {
     const fetchContest = async () => {
@@ -160,11 +121,11 @@ function ContestPage() {
           }
         } else {
           toast.error("Failed to fetch contest")
-            navigate(`/student-dashboard/${localStorage.getItem("username")}`)
+          navigate(`/student-dashboard/${localStorage.getItem("username")}`)
         }
       } catch (error) {
         console.error("Error fetching contest:", error)
-        toast.error("Error fetching contest")
+        toast.error(" Error fetching contest")
       } finally {
         setIsLoading(false)
       }
@@ -173,6 +134,40 @@ function ContestPage() {
     fetchContest()
   }, [id, navigate])
 
+  
+  // Fetch leaderboard data
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(`http://localhost:8081/api/v0/contest/leaderboard/${id}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          setLeaderboardData(result.data)
+        } else {
+          toast.error("Failed to fetch leaderboard")
+        }
+      } catch (error) {
+        console.error("Error fetching leaderboard:", error)
+        toast.error("Error fetching leaderboard")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (hasContestToken) {
+      fetchLeaderboard()
+    }
+  }, [hasContestToken, id])
+
+  
   // Calculate time remaining
   useEffect(() => {
     if (!contest) return
@@ -194,12 +189,12 @@ function ContestPage() {
     }
 
     calculateTimeRemaining()
-    const timer = setInterval(calculateTimeRemaining, 60000) // Update every minute
+    const timer = setInterval(calculateTimeRemaining, 60000)
 
     return () => clearInterval(timer)
   }, [contest])
 
-  // Generate contest name based on day of week
+  
   const generateContestName = (startTime) => {
     if (!startTime) return "Contest"
     const date = new Date(startTime)
@@ -208,7 +203,7 @@ function ContestPage() {
     return `${dayName} Contest`
   }
 
-  // Calculate contest duration
+  
   const calculateDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return "N/A"
     const start = new Date(startTime)
@@ -221,26 +216,48 @@ function ContestPage() {
     return `${hours}h ${minutes}m`
   }
 
-  // Navigate to problem page
+  const handleDownloadLeaderboard = async () => {
+    try {
+      const response = await fetch(`http://localhost:8081/api/v0/contest/leaderboard/${id}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to download leaderboard")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `leaderboard_${id}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      toast.success("Leaderboard downloaded successfully")
+    } catch (error) {
+      console.error("Download error:", error)
+      toast.error("Error downloading leaderboard")
+    }
+  }
+
+  
   const navigateToProblem = (problemId) => {
-    // First check if user is logged in and has valid contest token
     if (!isValidToken) {
       toast.error("You need to be logged in")
       navigate("/login")
       return
     }
 
-    // if (!isContestTokenValid) {
-    //   toast.error("Your contest session has expired")
-    //   setHasContestToken(false)
-    //   return
-    // }
-
-    // Navigate to problem page
-    console.log(problemId)
     navigate(`/contest/problem/${id}/${problemId}`)
   }
 
+  
   if (isLoading || isContestTokenLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -250,6 +267,7 @@ function ContestPage() {
     )
   }
 
+  
   if (!hasContestToken) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -274,10 +292,12 @@ function ContestPage() {
     )
   }
 
+  
   if (!contest) {
     return <div className="flex justify-center items-center h-screen">Contest not found</div>
   }
 
+  
   const progress = problems.length > 0 ? (completedProblems.length / problems.length) * 100 : 0
 
   return (
@@ -337,7 +357,6 @@ function ContestPage() {
 
             <TabsContent value="problems" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Contest Info */}
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle>Contest Information</CardTitle>
@@ -384,7 +403,6 @@ function ContestPage() {
                   </CardFooter>
                 </Card>
 
-                {/* Problems List */}
                 <div className="md:col-span-2 space-y-4">
                   <h2 className="text-lg font-medium">Problems</h2>
                   <div className="space-y-4">
@@ -429,8 +447,20 @@ function ContestPage() {
             <TabsContent value="leaderboard">
               <Card>
                 <CardHeader>
-                  <CardTitle>Contest Leaderboard</CardTitle>
-                  <CardDescription>Rankings based on score and time taken</CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col items-start">
+                      <CardTitle>Contest Leaderboard</CardTitle>
+                      <CardDescription>Rankings based on score and time taken</CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="flex gap-2 items-center"
+                      onClick={handleDownloadLeaderboard}
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Leaderboard
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -439,14 +469,12 @@ function ContestPage() {
                         <TableHead className="w-[80px]">Rank</TableHead>
                         <TableHead>Username</TableHead>
                         <TableHead>Score</TableHead>
-                        <TableHead>Problems Solved</TableHead>
                         <TableHead>Time Taken</TableHead>
-                        <TableHead>Department</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockParticipants.map((participant, index) => (
-                        <TableRow key={participant.id}>
+                      {leaderboardData.map((participant, index) => (
+                        <TableRow key={participant.userId}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-1">
                               {index === 0 && <Trophy className="h-4 w-4 text-yellow-500" />}
@@ -456,10 +484,8 @@ function ContestPage() {
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">{participant.username}</TableCell>
-                          <TableCell>{participant.score}</TableCell>
-                          <TableCell>{participant.problemsSolved}</TableCell>
+                          <TableCell>{participant.points}</TableCell>
                           <TableCell>{participant.timeTaken}</TableCell>
-                          <TableCell>{participant.department}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

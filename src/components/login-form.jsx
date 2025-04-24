@@ -37,6 +37,31 @@ function LoginForm() {
     },
   })
 
+   const fetchProfile = async () => {
+      try {
+        console.log("Fetching profile data...")
+        const response = await fetch("http://localhost:8081/api/v0/user", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        })
+  
+        if (response.ok) {
+          const result = await response.json()
+          console.log("Profile data received:", result.data)
+          localStorage.setItem("userProfile", JSON.stringify(result.data))
+        } else {
+          console.error("Failed to fetch profile data")
+          toast.error("Failed to fetch profile data")
+        }
+      } catch (error) {
+        console.error("Error fetching profile data:", error)
+        toast.error("Error fetching profile data")
+      }
+    }
+
   const onSubmit = async (values) => {
     setIsLoading(true);
 
@@ -61,11 +86,10 @@ function LoginForm() {
         const decodedToken = JSON.parse(atob(result.data.split(".")[1]));
         const userRole = decodedToken.role;
         setRole(userRole);
-
         
         localStorage.setItem("accessToken", result.data);
         localStorage.setItem("userRole", userRole);
-
+        fetchProfile();
         toast.success("Login successful!");
         if (userRole === "ROLE_STUDENT") {
           const username = values.mailId.split(".")[0];

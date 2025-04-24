@@ -36,16 +36,7 @@ import { CreateTask } from "./create-task"
 import useValidToken from "./hooks/useValidToken"
 import { Loader } from "./ui/loader"
 
-// Mock data
-const mockProfile = {
-  name: "Dr. Aldo stalin JL",
-  username: "Aldo stalin",
-  department: "Information Technology",
-  email: "alsostalin@sonatech.ac.in",
-  batches: 4,
-  contests: 12,
-  tasks: 45,
-}
+
 
 function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState("batches")
@@ -221,6 +212,10 @@ function TeacherDashboard() {
     const token = localStorage.getItem("accessToken")
     localStorage.removeItem("accessToken")
     localStorage.removeItem("userRole")
+    localStorage.removeItem("userProfile")
+    if(localStorage.getItem("problems")){
+      localStorage.removeItem("problems")
+    }
 
     const response = await fetch("http://localhost:8081/logout", {
       method: "POST",
@@ -333,7 +328,7 @@ function TeacherDashboard() {
           <div className="flex items-center gap-4">
             <ModeToggle />
             <Avatar>
-              <AvatarImage src="/placeholder.svg" alt={mockProfile.name} />
+              <AvatarImage src="/placeholder.svg" alt={JSON.parse(localStorage.getItem("userProfile")).username} />
               <AvatarFallback>RK</AvatarFallback>
             </Avatar>
           </div>
@@ -349,12 +344,12 @@ function TeacherDashboard() {
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center space-y-2">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="/placeholder.svg" alt={mockProfile.name} />
+                  <AvatarImage src="/placeholder.svg" alt={JSON.parse(localStorage.getItem("userProfile")).username} />
                   <AvatarFallback className="text-xl">RK</AvatarFallback>
                 </Avatar>
                 <div className="text-center">
-                  <h3 className="font-medium text-lg">{mockProfile.name}</h3>
-                  <p className="text-sm text-muted-foreground">@{mockProfile.username}</p>
+                  <h3 className="font-medium text-lg">{JSON.parse(localStorage.getItem("userProfile")).username}</h3>
+                  <p className="text-sm text-muted-foreground">@{JSON.parse(localStorage.getItem("userProfile")).username}</p>
                 </div>
                 <Badge variant="outline" className="bg-primary/10">
                   Teacher
@@ -363,23 +358,23 @@ function TeacherDashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Department</span>
-                  <span className="font-medium">{mockProfile.department}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).dept}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Email</span>
-                  <span className="font-medium">{mockProfile.email}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).emailId}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Batches</span>
-                  <span className="font-medium">{mockProfile.batches}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).batchesCreated}</span>
                 </div>
                 < div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Contests Created</span>
-                  <span className="font-medium">{mockProfile.contests}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).contestCreated}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tasks Assigned</span>
-                  <span className="font-medium">{mockProfile.tasks}</span>
+                  <span className="font-medium">{JSON.parse(localStorage.getItem("userProfile")).tasksCreated}</span>
                 </div>
               </div>
             </CardContent>
@@ -717,22 +712,22 @@ function TeacherDashboard() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
                     <Users className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-2xl font-bold">{mockProfile.batches}</span>
+                      <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).batchesCreated}</span>
                       <span className="text-xs text-muted-foreground">Batches</span>
                     </div>
                     <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
                       <Calendar className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-2xl font-bold">{mockProfile.contests}</span>
+                      <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).contestCreated}</span>
                       <span className="text-xs text-muted-foreground">Contests</span>
                     </div>
                     <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
                       <FileText className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-2xl font-bold">{mockProfile.tasks}</span>
+                      <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).tasksCreated}</span>
                       <span className="text-xs text-muted-foreground">Tasks</span>
                     </div>
                     <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
                       <GraduationCap className="h-8 w-8 text-primary mb-2" />
-                      <span className="text-2xl font-bold">160</span>
+                      <span className="text-2xl font-bold">{JSON.parse(localStorage.getItem("userProfile")).totalStudentsInAllBatches}</span>
                       <span className="text-xs text-muted-foreground">Students</span>
                     </div>
                   </div>
