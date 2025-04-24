@@ -227,6 +227,10 @@ function StudentDashboard() {
           }
         })
 
+        active.forEach((contest) => {
+          localStorage.setItem(contest.contestID, false);
+        });
+
         setContests({
           active,
           scheduled,
@@ -249,6 +253,9 @@ function StudentDashboard() {
   // Check authentication and fetch tasks
   useEffect(() => {
     if (!isValidToken) {
+      if(localStorage.getItem("userProfile")){
+        localStorage.removeItem("userProfile")
+      }
       navigate("/login")
       return
     }
@@ -282,6 +289,7 @@ function StudentDashboard() {
     const fetchTasks = async () => {
       setIsLoading(true)
       try {
+        
         const response = await fetch(
           `http://localhost:8081/api/v0/tasks/assigned-task/${formatDateForApi(currentDate)}`,
           {
@@ -320,6 +328,10 @@ function StudentDashboard() {
   if (accessDenied) {
     return <h1>Access Denied</h1>
   }
+
+  setTimeout(()=>{
+
+  },[1000])
 
   return (
     <div className="flex min-h-screen flex-col">

@@ -80,6 +80,9 @@ function TeacherDashboard() {
 
   useEffect(() => {
     if (!isLoggedIn) {
+      if(localStorage.getItem("userProfile")){
+        localStorage.removeItem("userProfile")
+      }
       navigate("/login")
       return
     }

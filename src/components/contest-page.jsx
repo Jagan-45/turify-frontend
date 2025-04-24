@@ -26,7 +26,7 @@ function ContestPage() {
   const [activeTab, setActiveTab] = useState("problems")
   const [timeRemaining, setTimeRemaining] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-  const [hasContestToken, setHasContestToken] = useState(false)
+  
   const [completedProblems, setCompletedProblems] = useState([])
   const [leaderboardData, setLeaderboardData] = useState([])
 
@@ -48,11 +48,7 @@ function ContestPage() {
 
   
   // Check if user has contest token
-  useEffect(() => {
-    if (!isContestTokenLoading) {
-      setHasContestToken(isContestTokenValid)
-    }
-  }, [isContestTokenLoading, isContestTokenValid])
+
 
   
   // Enter contest and get contest token
@@ -73,7 +69,7 @@ function ContestPage() {
         const problemsData = result.data.problems || []
         localStorage.setItem("problems", JSON.stringify(problemsData))
         setProblems(problemsData)
-        setHasContestToken(true)
+        localStorage.setItem(id,true)
         toast.success(result.message || "Successfully entered contest")
       } else {
         toast.error("Failed to enter contest")
@@ -162,10 +158,10 @@ function ContestPage() {
       }
     }
 
-    if (hasContestToken) {
+    if (localStorage.getItem(id)) {
       fetchLeaderboard()
     }
-  }, [hasContestToken, id])
+  }, [id])
 
   
   // Calculate time remaining
@@ -268,7 +264,7 @@ function ContestPage() {
   }
 
   
-  if (!hasContestToken) {
+  if (!localStorage.getItem(id)) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Card className="w-full max-w-md">

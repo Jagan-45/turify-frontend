@@ -89,6 +89,9 @@ function LoginForm() {
         
         localStorage.setItem("accessToken", result.data);
         localStorage.setItem("userRole", userRole);
+        if(localStorage.getItem("userProfile")){
+          localStorage.removeItem("userProfile");
+        }
         fetchProfile();
         toast.success("Login successful!");
         if (userRole === "ROLE_STUDENT") {
