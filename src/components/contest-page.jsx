@@ -105,7 +105,7 @@ function ContestPage() {
         const result = await response.json()
 
         // Store the JWT token
-        localStorage.setItem("contestToken", result.data.jwt)
+        localStorage.setItem("accessToken", result.data.jwt)
 
         // Store the problems in localStorage
         const problemsData = result.data.problems || []

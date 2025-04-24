@@ -9,7 +9,7 @@ export default function useContestToken() {
   useEffect(() => {
     const checkContestToken = () => {
       setIsLoading(true)
-      const contestToken = localStorage.getItem("contestToken")
+      const contestToken = localStorage.getItem("accessToken")
 
       if (!contestToken) {
         setIsValid(false)
