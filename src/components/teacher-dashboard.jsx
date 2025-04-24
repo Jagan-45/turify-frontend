@@ -791,7 +791,15 @@ function TeacherDashboard() {
         BatchName={batchName}
         method={method}
       />
-      <CreateContest open={openCreateContest} onOpenChange={setOpenCreateContest} onSubmit={handleCreateContest} />
+      <CreateContest 
+      open={openCreateContest} 
+      onOpenChange={setOpenCreateContest} 
+      onSubmit={handleCreateContest}
+      batches={batches}
+      isCreated={setBatchCreated}
+      method={method}
+      
+      />
       <CreateTask
         open={openCreateTask}
         onOpenChange={setOpenCreateTask}
