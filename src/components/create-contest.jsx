@@ -172,7 +172,7 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
             topicTag: topic.topicTag,
             difficulty: topic.difficulty,
             point: topic.difficulty === "easy" ? 10 : topic.difficulty === "medium" ? 20 : 30,
-            count: 4,
+            count: topicsWithDefaults.length <= 2 ? 2 : 1,
           })),
         }
       }
