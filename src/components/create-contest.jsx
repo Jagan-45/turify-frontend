@@ -20,7 +20,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import useValidToken from "../components/hooks/useValidToken"
 import { cn } from "../lib/utils"
 import { Badge } from "./ui/badge"
-import { toast } from 'react-toastify'
+import { toast } from "react-toastify"
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -30,12 +30,17 @@ const formSchema = z.object({
   endTime: z.string({ required_error: "Please select an end time." }),
   batch: z.array(z.string()).min(1, { message: "Please select at least one batch." }),
   topicCount: z.number().min(1, { message: "Please enter the number of topics." }),
-  topics: z.array(z.object({
-    topicTag: z.string().min(1, { message: "Please select a topic." }),
-    difficulty: z.string().min(1, { message: "Please select a difficulty." }),
-    point: z.number().min(1, { message: "Please enter points." }),
-    count: z.number().min(1, { message: "Please enter the count of problems." }),
-  })).min(1, { message: "At least one topic is required." }),
+  topics: z
+    .array(
+      z.object({
+        topicTag: z.string().min(1, { message: "Please select a topic." }),
+        difficulty: z.string().min(1, { message: "Please select a difficulty." }),
+        // We don't need these in the schema since we'll add them automatically
+        // point: z.number().min(1, { message: "Please enter points." }).optional(),
+        // count: z.number().min(1, { message: "Please enter the count of problems." }).optional(),
+      }),
+    )
+    .min(1, { message: "At least one topic is required." }),
 })
 
 export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated, method = "POST" }) {
@@ -45,6 +50,20 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
   const [isLoading, setIsLoading] = useState(false)
   const [openBatchSelector, setOpenBatchSelector] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      startDate: undefined,
+      startTime: "",
+      endDate: undefined,
+      endTime: "",
+      batch: [],
+      topicCount: 1,
+      topics: [{ topicTag: "", difficulty: "" }],
+    },
+  })
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole")
@@ -57,74 +76,90 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
     return <h1>Access Denied</h1>
   }
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      startDate: undefined,
-      startTime: "",
-      endDate: undefined,
-      endTime: "",
-      batch: [],
-      topicCount: 1,
-      topics: [{ topicTag: "", difficulty: "", point: 0, count: 0 }],
-    },
-  })
-
   const toggleBatch = (batch) => {
     const current = form.getValues("batch")
     if (current.includes(batch)) {
-      form.setValue("batch", current.filter((b) => b !== batch))
+      form.setValue(
+        "batch",
+        current.filter((b) => b !== batch),
+      )
     } else {
       form.setValue("batch", [...current, batch])
     }
   }
 
   const handleSubmit = async (values) => {
-    setIsLoading(true)
-    console.log("hi inside ")
-    const formattedValues = {
-      contestName: values.title,
-      startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
-      endTime: `${format(values.endDate, "yyyy-MM-dd")}T ${values.endTime}:00`,
-      assignToBatches: values.batch,
-      req: values.topics.map(topic => ({
-        topicTag: topic.topicTag,
-        difficulty: topic.difficulty,
-        point: topic.point,
-        count: topic.count,
-      })),
-    }
-
     try {
+      setIsLoading(true)
+      console.log("Form values before processing:", values)
+
+      // Add default values for point and count to each topic
+      const topicsWithDefaults = values.topics.map((topic) => ({
+        ...topic,
+        point: 10, // Default value of 10 for points
+        count: 3, // Default value of 3 for count
+      }))
+
+      const formattedValues = {
+        contestName: values.title,
+        startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
+        endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
+        assignToBatches: values.batch,
+        req: topicsWithDefaults.map((topic) => ({
+          topicTag: topic.topicTag,
+          difficulty: topic.difficulty,
+          point: topic.point,
+          count: topic.count,
+        })),
+      }
+
+      console.log("Sending request with data:", formattedValues)
       const response = await fetch("http://localhost:8081/api/v0/contest", {
         method: method,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
         body: JSON.stringify(formattedValues),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error("Failed to create contest");
+        throw new Error("Failed to create contest")
       }
 
       toast.success(
-         `${formattedValues.contestName} scheduled from ${formattedValues.startTime} to ${formattedValues.endTime}`,
-      );
-      form.reset();
-      onOpenChange(false);
+        `${formattedValues.contestName} scheduled from ${formattedValues.startTime} to ${formattedValues.endTime}`,
+      )
+      form.reset()
+      onOpenChange(false)
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message)
+      console.error("Error creating contest:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
+  useEffect(() => {
+    const count = form.watch("topicCount") || 1
+    const currentTopics = form.getValues("topics") || []
+
+    if (count > currentTopics.length) {
+      // Add new topics
+      const newTopics = [...currentTopics]
+      for (let i = currentTopics.length; i < count; i++) {
+        newTopics.push({ topicTag: "", difficulty: "" })
+      }
+      form.setValue("topics", newTopics)
+    } else if (count < currentTopics.length) {
+      // Remove excess topics
+      form.setValue("topics", currentTopics.slice(0, count))
+    }
+  }, [form.watch("topicCount")])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px] overflow-y-auto">
+      <DialogContent className="sm:max-w-[525px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Contest</DialogTitle>
           <DialogDescription>Schedule a coding contest for your students.</DialogDescription>
@@ -137,7 +172,9 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Contest Title</FormLabel>
-                  <FormControl><Input placeholder="e.g., Weekly Challenge" {...field} /></FormControl>
+                  <FormControl>
+                    <Input placeholder="e.g., Weekly Challenge" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -180,10 +217,16 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                 <FormItem>
                   <FormLabel>Start Time</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger></FormControl>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select time" />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
                       {["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"].map((time) => (
-                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                        <SelectItem key={time} value={time}>
+                          {time}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -229,10 +272,16 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                 <FormItem>
                   <FormLabel>End Time </FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger></FormControl>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select time" />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
                       {["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"].map((time) => (
-                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                        <SelectItem key={time} value={time}>
+                          {time}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -247,14 +296,22 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Number of Topics</FormLabel>
-                  <FormControl><Input type="number" placeholder="e.g., 2" {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="e.g., 2"
+                      {...field}
+                      onChange={(e) => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             {Array.from({ length: form.watch("topicCount") || 0 }).map((_, index) => (
-              <div key={index}>
+              <div key={index} className="p-4 border rounded-md">
+                <h3 className="font-medium mb-3">Topic {index + 1}</h3>
                 <FormField
                   control={form.control}
                   name={`topics.${index}.topicTag`}
@@ -262,10 +319,16 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                     <FormItem>
                       <FormLabel>Topic</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select topic" /></SelectTrigger></FormControl>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select topic" />
+                          </SelectTrigger>
+                        </FormControl>
                         <SelectContent>
                           {["String", "Array", "Stack", "Queue", "Grid"].map((topic) => (
-                            <SelectItem key={topic} value={topic}>{topic}</SelectItem>
+                            <SelectItem key={topic} value={topic}>
+                              {topic}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -278,13 +341,19 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                   control={form.control}
                   name={`topics.${index}.difficulty`}
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="mt-3">
                       <FormLabel>Difficulty</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger></FormControl>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select difficulty" />
+                          </SelectTrigger>
+                        </FormControl>
                         <SelectContent>
                           {["easy", "medium", "hard"].map((difficulty) => (
-                            <SelectItem key={difficulty} value={difficulty}>{difficulty}</SelectItem>
+                            <SelectItem key={difficulty} value={difficulty}>
+                              {difficulty}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -293,29 +362,10 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name={`topics.${index}.point`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Points</FormLabel>
-                      <FormControl><Input type="number" placeholder="e.g., 10" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name={`topics.${index}.count`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Count of Problems</FormLabel>
-                      <FormControl><Input type="number" placeholder="e.g., 1" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="mt-3 text-sm text-muted-foreground">
+                  <p>Default points: 10</p>
+                  <p>Default problem count: 3</p>
+                </div>
               </div>
             ))}
 
@@ -329,9 +379,7 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button variant="outline" className="w-full justify-between">
-                          {field.value?.length > 0
-                            ? `${field.value.length} selected`
-                            : "Select batches"}
+                          {field.value?.length > 0 ? `${field.value.length} selected` : "Select batches"}
                           <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
@@ -347,8 +395,14 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                                 .filter((b) => b.toLowerCase().includes(searchTerm.toLowerCase()))
                                 .map((batch) => (
                                   <CommandItem key={batch} onSelect={() => toggleBatch(batch)}>
-                                    <Check className={cn("mr-2 h-4 w-4", field.value?.includes(batch) ? "opacity-100" : "opacity-0")} />
-                                    {batch} </CommandItem>
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        field.value?.includes(batch) ? "opacity-100" : "opacity-0",
+                                      )}
+                                    />
+                                    {batch}{" "}
+                                  </CommandItem>
                                 ))}
                             </ScrollArea>
                           </CommandGroup>
