@@ -442,7 +442,7 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
 
                     <div className="mt-3 text-sm text-muted-foreground">
                       <p>Points: Easy (10), Medium (20), Hard (30)</p>
-                      <p>Default problem count: 4</p>
+                      <p>Default problem count: Depends on the topics selected</p>
                     </div>
                   </div>
                 ))}
