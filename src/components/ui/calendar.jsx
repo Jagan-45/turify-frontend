@@ -40,22 +40,18 @@ export function Calendar({
     
     const days = []
     
-    // Get the day of the week for the first day (0 = Sunday, 1 = Monday, etc.)
     const firstDayOfWeek = firstDay.getDay()
     
-    // Add days from previous month to fill the first row
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
       const date = new Date(year, monthIndex, -i)
       days.push({ date, isCurrentMonth: false })
     }
     
-    // Add days of the current month
     for (let i = 1; i <= daysCount; i++) {
       const date = new Date(year, monthIndex, i)
       days.push({ date, isCurrentMonth: true })
     }
     
-    // Add days from next month to complete the last row
     const remainingDays = 7 - (days.length % 7 || 7)
     for (let i = 1; i <= remainingDays; i++) {
       const date = new Date(year, monthIndex + 1, i)
@@ -85,6 +81,7 @@ export function Calendar({
 
   const handleDateSelect = React.useCallback((date) => {
     if (isDisabled(date)) return
+    console.log("Selected date:", date); // Debugging line
     onSelect?.(date)
   }, [isDisabled, onSelect])
 
@@ -119,7 +116,7 @@ export function Calendar({
           {month.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </motion.h2>
         <motion.button
-          while Hover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleNextMonth}
           className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -129,7 +126,7 @@ export function Calendar({
         </motion.button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className=" grid grid-cols-7 gap-1">
         {daysOfWeek.map((day) => (
           <div
             key={day}

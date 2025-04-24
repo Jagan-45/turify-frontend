@@ -93,48 +93,65 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
       setIsLoading(true)
       console.log("Form values before processing:", values)
 
-      // Add default values for point and count to each topic
+      let formattedValues
+
+      if (method === "PUT") {
+      // For update, only send contestId, startTime, and endTime
+      formattedValues = {
+        contestId: values.contestId, // Ensure contestId is part of the form values
+        startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
+        endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
+      }
+      } else {
+      // For create, include all fields
       const topicsWithDefaults = values.topics.map((topic) => ({
         ...topic,
         point: 10, // Default value of 10 for points
-        count: 3, // Default value of 3 for count
+        count: 4, // Default value of 3 for count
       }))
 
-      const formattedValues = {
+      formattedValues = {
         contestName: values.title,
         startTime: `${format(values.startDate, "yyyy-MM-dd")}T${values.startTime}:00`,
         endTime: `${format(values.endDate, "yyyy-MM-dd")}T${values.endTime}:00`,
         assignToBatches: values.batch,
         req: topicsWithDefaults.map((topic) => ({
-          topicTag: topic.topicTag,
-          difficulty: topic.difficulty,
-          point: topic.point,
-          count: topic.count,
+        topicTag: topic.topicTag,
+        difficulty: topic.difficulty,
+        point: topic.difficulty === "easy" ? 10 : topic.difficulty === "medium" ? 20 : 30,
+        count: topic.count,
         })),
+      }
       }
 
       console.log("Sending request with data:", formattedValues)
-      const response = await fetch("http://localhost:8081/api/v0/contest", {
+      const response = await fetch(
+      method === "PUT" ? "http://localhost:8081/api/v0/contest" : "http://localhost:8081/api/v0/contest",
+      {
         method: method,
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
         body: JSON.stringify(formattedValues),
-      })
+      },
+      )
 
       if (!response.ok) {
-        throw new Error("Failed to create contest")
+      throw new Error("Failed to process contest")
       }
 
+      isCreated((prev) => !prev)
       toast.success(
-        `${formattedValues.contestName} scheduled from ${formattedValues.startTime} to ${formattedValues.endTime}`,
+      method === "PUT"
+        ? `Contest updated successfully from ${formattedValues.startTime} to ${formattedValues.endTime}`
+        : `${formattedValues.contestName} scheduled from ${formattedValues.startTime} to ${formattedValues.endTime}`,
       )
       form.reset()
       onOpenChange(false)
     } catch (error) {
       toast.error(error.message)
-      console.error("Error creating contest:", error)
+      console.error("Error processing contest:", error)
     } finally {
       setIsLoading(false)
     }
@@ -161,8 +178,10 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Contest</DialogTitle>
-          <DialogDescription>Schedule a coding contest for your students.</DialogDescription>
+          <DialogTitle>{method === "POST" ? "Create New Contest" : "Update Contest"}</DialogTitle>
+          <DialogDescription>
+            {method === "POST" ? "Schedule a coding contest for your students." : "Update the contest details."}
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
@@ -290,86 +309,87 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="topicCount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Number of Topics</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="e.g., 2"
-                      {...field}
-                      onChange={(e) => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {Array.from({ length: form.watch("topicCount") || 0 }).map((_, index) => (
-              <div key={index} className="p-4 border rounded-md">
-                <h3 className="font-medium mb-3">Topic {index + 1}</h3>
+            {method === "POST" && (
+              <>
                 <FormField
                   control={form.control}
-                  name={`topics.${index}.topicTag`}
+                  name="topicCount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Topic</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select topic" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {["String", "Array", "Stack", "Queue", "Grid"].map((topic) => (
-                            <SelectItem key={topic} value={topic}>
-                              {topic}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Number of Topics</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 2"
+                          {...field}
+                          onChange={(e) => field.onChange(Number.parseInt(e.target.value, 10) || 1)}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name={`topics.${index}.difficulty`}
-                  render={({ field }) => (
-                    <FormItem className="mt-3">
-                      <FormLabel>Difficulty</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select difficulty" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {["easy", "medium", "hard"].map((difficulty) => (
-                            <SelectItem key={difficulty} value={difficulty}>
-                              {difficulty}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {Array.from({ length: form.watch("topicCount") || 0 }).map((_, index) => (
+                  <div key={index} className="p-4 border rounded-md">
+                    <h3 className="font-medium mb-3">Topic {index + 1}</h3>
+                    <FormField
+                      control={form.control}
+                      name={`topics.${index}.topicTag`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Topic</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select topic" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {["String", "Array", "Stack", "Queue", "Grid"].map((topic) => (
+                                <SelectItem key={topic} value={topic}>
+                                  {topic}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <div className="mt-3 text-sm text-muted-foreground">
-                  <p>Default points: 10</p>
-                  <p>Default problem count: 3</p>
-                </div>
-              </div>
-            ))}
+                    <FormField
+                      control={form.control}
+                      name={`topics.${index}.difficulty`}
+                      render={({ field }) => (
+                        <FormItem className="mt-3">
+                          <FormLabel>Difficulty</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select difficulty" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {["easy", "medium", "hard"].map((difficulty) => (
+                                <SelectItem key={difficulty} value={difficulty}>
+                                  {difficulty}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-            <FormField
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      <p>Default points: Depends on the difficulty level</p>
+                      <p>Default problem count: 4</p>
+                    </div>
+                  </div>
+                ))}
+                            <FormField
               control={form.control}
               name="batch"
               render={({ field }) => (
@@ -432,15 +452,19 @@ export function CreateContest({ open, onOpenChange, onSubmit, batches, isCreated
                 </FormItem>
               )}
             />
+              </>
+            )}
+
+
 
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Contest"}
+                {isLoading ? (method === "POST" ? "Creating..." : "Updating...") : method === "PUT" ? "Update Contest" : "Create Contest"}
               </Button>
             </DialogFooter>
           </form>
-        </Form>
-      </DialogContent>
+          </Form>
+        </DialogContent>
     </Dialog>
   )
 }

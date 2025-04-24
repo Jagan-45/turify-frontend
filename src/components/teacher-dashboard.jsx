@@ -47,56 +47,11 @@ const mockProfile = {
   tasks: 45,
 }
 
-// Mock contests data
-const mockContests = [
-  {
-    id: 1,
-    title: "Weekly Algorithm Challenge",
-    date: "April 10, 2023",
-    batch: "CSE 2023",
-    status: "Scheduled",
-  },
-  {
-    id: 2,
-    title: "Dynamic Programming Contest",
-    date: "April 5, 2023",
-    batch: "CSE 2023",
-    status: "Live",
-  },
-  {
-    id: 3,
-    title: "Graph Theory Challenge",
-    date: "March 28, 2023",
-    batch: "CSE 2023",
-    status: "Completed",
-  },
-  {
-    id: 4,
-    title: "Sorting Algorithms Contest",
-    date: "March 20, 2023",
-    batch: "CSE 2024",
-    status: "Completed",
-  },
-  {
-    id: 5,
-    title: "Data Structures Quiz",
-    date: "March 15, 2023",
-    batch: "CSE 2024",
-    status: "Completed",
-  },
-  {
-    id: 6,
-    title: "Web Development Challenge",
-    date: "March 10, 2023",
-    batch: "CSE 2023",
-    status: "Completed",
-  },
-]
-
 function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState("batches")
   const [openCreateBatch, setOpenCreateBatch] = useState(false)
   const [openCreateContest, setOpenCreateContest] = useState(false)
+  const [openUpdateContest, setOpenUpdateContest] = useState(false) // New state for updating contests
   const [openCreateTask, setOpenCreateTask] = useState(false)
   const [selectedStudents, setSelectedStudents] = useState([])
   const [openStudentDialog, setOpenStudentDialog] = useState(false)
@@ -106,12 +61,13 @@ function TeacherDashboard() {
   const [batches, setBatches] = useState([])
   const [batchDetails, setBatchDetails] = useState([])
   const [tasks, setTasks] = useState([])
+  const [contests, setContests] = useState([]) // State for contests
   const [updateBatches, setUpdateBatches] = useState([])
   const [taskId, setTaskId] = useState("")
   const [loading, setLoading] = useState({
     batches: true,
     tasks: true,
-    contests: false,
+    contests: true, // Set to true for loading contests
   })
 
   // View more state
@@ -139,7 +95,6 @@ function TeacherDashboard() {
     const fetchBatches = async () => {
       setLoading((prev) => ({ ...prev, batches: true }))
       const token = localStorage.getItem("accessToken")
-      console.log(token)
       const temp = []
       try {
         const response = await fetch("http://localhost:8081/api/v0/batches", {
@@ -214,9 +169,37 @@ function TeacherDashboard() {
       }
     }
 
+    const fetchContests = async () => {
+      setLoading((prev) => ({ ...prev, contests: true }))
+      const token = localStorage.getItem("accessToken")
+      try {
+        const response = await fetch("http://localhost:8081/api/v0/contest/created-contests", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          toast.error("Failed to fetch contests.")
+          setLoading((prev) => ({ ...prev, contests: false }))
+          return
+        }
+
+        const data = await response.json()
+        setContests(data.data)
+        setLoading((prev) => ({ ...prev, contests: false }))
+      } catch (error) {
+        console.error("Error fetching contests:", error)
+        toast.error("Failed to load contests.")
+        setLoading((prev) => ({ ...prev, contests: false }))
+      }
+    }
+
     fetchBatches()
     fetchTasks()
-  }, [batchCreated, isLoggedIn, navigate])
+    fetchContests()
+  }, [batchCreated, isLoggedIn, navigate, updateBatches]) // Added updateBatches as a dependency
 
   const handleCreateContest = (contestData) => {
     console.log("Creating contest:", contestData)
@@ -226,7 +209,11 @@ function TeacherDashboard() {
     })
   }
 
-
+  const handleUpdateContest = (contest) => {
+    setOpenUpdateContest(true)
+    setMethod("PUT")
+    // Set any other necessary state for updating the contest
+  }
 
   const handleLogout = async () => {
     const token = localStorage.getItem("accessToken")
@@ -263,7 +250,7 @@ function TeacherDashboard() {
     const token = localStorage.getItem("accessToken")
     try {
       const response = await fetch(`http://localhost:8081/api/v0/batches/${batchId}`, {
-        method: "DELETE",
+ method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -290,7 +277,7 @@ function TeacherDashboard() {
     }))
   }
 
-  const handleEditTask = (taskId,batches) => {
+  const handleEditTask = (taskId, batches) => {
     setTaskId(taskId)
     setMethod("PUT")
     setUpdateBatches(batches)
@@ -320,8 +307,6 @@ function TeacherDashboard() {
     }
   }
 
-
-  // Function to render status badge
   const renderStatusBadge = (status) => {
     switch (status) {
       case "Live":
@@ -354,7 +339,6 @@ function TeacherDashboard() {
       </header>
       <main className="flex-1 container py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Profile Card */}
           <Card className="h-fit">
             <CardHeader className="pb-2">
               <CardTitle>Teacher Profile</CardTitle>
@@ -387,7 +371,7 @@ function TeacherDashboard() {
                   <span className="text-muted-foreground">Batches</span>
                   <span className="font-medium">{mockProfile.batches}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                < div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Contests Created</span>
                   <span className="font-medium">{mockProfile.contests}</span>
                 </div>
@@ -409,25 +393,22 @@ function TeacherDashboard() {
             </CardFooter>
           </Card>
 
-          {/* Main Content */}
           <div className="md:col-span-2 space-y-6">
-            {/* Action Buttons */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button className="w-full gap-2" onClick={() => {setMethod('POST');  setOpenCreateBatch(true)}}>
+              <Button className="w-full gap-2" onClick={() => {setMethod('POST'); setOpenCreateBatch(true)}}>
                 <Users className="h-4 w-4" />
                 Create Batch
               </Button>
-              <Button className="w-full gap-2" onClick={() =>{setMethod('POST');  setOpenCreateContest(true)}}>
+              <Button className="w-full gap-2" onClick={() => {setMethod('POST'); setOpenCreateContest(true)}}>
                 <Calendar className="h-4 w-4" />
                 Create Contest
               </Button>
-              <Button className="w-full gap-2" onClick={() =>{setMethod('POST');  setOpenCreateTask(true)}}>
+              <Button className="w-full gap-2" onClick={() => {setMethod('POST'); setOpenCreateTask(true)}}>
                 <FileText className="h-4 w-4" />
                 Assign Task
               </Button>
             </div>
 
-            {/* Tabs for Batches, Contests, Tasks */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="batches">Batches</TabsTrigger>
@@ -435,7 +416,6 @@ function TeacherDashboard() {
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
               </TabsList>
 
-              {/* Batches Tab */}
               <TabsContent value="batches" className="space-y-4">
                 {loading.batches ? (
                   <div className="flex justify-center py-8">
@@ -493,8 +473,7 @@ function TeacherDashboard() {
                                   <span className="font-medium">{batch.students}</span>
                                 </div>
                               </CardContent>
-                              <CardFooter>
-                                <Button
+                              <CardFooter> <Button
                                   variant="outline"
                                   className="w-full gap-2"
                                   onClick={() => handleViewStudents(batch.studentList)}
@@ -528,82 +507,104 @@ function TeacherDashboard() {
                 )}
               </TabsContent>
 
-              {/* Contests Tab */}
               <TabsContent value="contests" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium">Recent Contests</h3>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() =>{setMethod('POST');  setOpenCreateContest(true)}}>
-                    <Plus className="h-4 w-4" />
-                    New Contest
-                  </Button>
-                </div>
-                {loading.contests ? (
-                  <div className="flex justify-center py-8">
-                    <Loader text="Loading contests..." />
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <AnimatePresence>
-                      {mockContests
-                        .slice(0, viewMore.contests ? mockContests.length : itemsToShow)
-                        .map((contest, index) => (
-                          <motion.div
-                            key={contest.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
-                          >
-                            <Card className="transition-all hover:shadow-md">
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <h4 className="font-medium">{contest.title}</h4>
+                 <Button onClick={() => { setMethod('POST'); setOpenCreateContest(true); }}>
+                            <Plus className="h-4 w-4" />
+                            New Contest
+                            </Button>
+                          </div>
+                          {loading.contests ? (
+                            <div className="flex justify-center py-8">
+                            <Loader text="Loading contests..." />
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                            <AnimatePresence>
+                              {contests
+                              .slice(0, viewMore.contests ? contests.length : itemsToShow)
+                              .map((contest, index) => (
+                                <motion.div
+                                key={contest.contestID}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.3, delay: index * 0.05 }}
+                                >
+                                <Card className="transition-all hover:shadow-md">
+                                  <CardContent className="p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                    <h4 className="font-medium">{contest.contestName}</h4>
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                       <CalendarIcon className="h-3.5 w-3.5" />
-                                      <span>{contest.date}</span>
+                                      <span>{new Date(contest.startTime).toLocaleString()}</span>
                                       <span>•</span>
-                                      <span>{contest.batch}</span>
+                                      <span
+                                      className={`${
+                                        contest.status === "ACTIVE"
+                                        ? "text-green-500"
+                                        : contest.status === "SCHEDULED"
+                                        ? "text-yellow-500"
+                                        : contest.status === "CLOSED"
+                                        ? "text-red-500"
+                                        : "text-muted-foreground"
+                                      }`}
+                                      >
+                                      {contest.status}
+                                      </span>
                                     </div>
+                                    </div>
+                                    <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleUpdateContest(contest)}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Update Contest
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                    </DropdownMenu>
                                   </div>
-                                  {renderStatusBadge(contest.status)}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </motion.div>
-                        ))}
-                    </AnimatePresence>
-                    {mockContests.length > itemsToShow && (
-                      <div className="flex justify-center mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleViewMore("contests")}
-                          className="gap-2"
-                        >
-                          {viewMore.contests ? (
-                            <>
-                              <ChevronUp className="h-4 w-4" />
-                              Show Less
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4" />
-                              View More ({mockContests.length - itemsToShow} more)
-                            </>
+                                  </CardContent>
+                                </Card>
+                                </motion.div>
+                              ))}
+                            </AnimatePresence>
+                            {contests.length > itemsToShow && (
+                              <div className="flex justify-center mt-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toggleViewMore("contests")}
+                                className="gap-2"
+                              >
+                                {viewMore.contests ? (
+                                <>
+                                  <ChevronUp className="h-4 w-4" />
+                                  Show Less
+                                </>
+                                ) : (
+                                <>
+                                  <ChevronDown className="h-4 w-4" />
+                                  View More ({contests.length - itemsToShow} more)
+                                </>
+                                )}
+                              </Button>
+                              </div>
+                            )}
+                            </div>
                           )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </TabsContent>
+                          </TabsContent>
 
-              {/* Tasks Tab */}
-              <TabsContent value="tasks" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">Recent Tasks</h3>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() =>{setMethod('POST');  setOpenCreateTask(true)}}>
+                          <TabsContent value="tasks" className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium">Recent Tasks</h3>
+                            <Button variant="outline" size="sm" className=" gap-2" onClick={() => {setMethod('POST'); setOpenCreateTask(true)}}>
                     <Plus className="h-4 w-4" />
                     New Task
                   </Button>
@@ -634,12 +635,12 @@ function TeacherDashboard() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleEditTask(task.id,task.batches)}>
+                                    <DropdownMenuItem onClick={() => handleEditTask(task.id, task.batches)}>
                                       <Edit className="h-4 w-4 mr-2" />
                                       Edit Task
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive"  onClick={()=>handleDeleteTask(task.id)}>
-                                      <Trash className="h-4 w-4 mr-2"/>
+                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTask(task.id)}>
+                                      <Trash className="h-4 w-4 mr-2" />
                                       Delete Task
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
@@ -706,48 +707,46 @@ function TeacherDashboard() {
               </TabsContent>
             </Tabs>
 
-            {/* Quick Stats */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
+                <CardHeader className="pb-2">
+                  <CardTitle>Quick Stats</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
                     <Users className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">{mockProfile.batches}</span>
-                    <span className="text-xs text-muted-foreground">Batches</span>
+                      <span className="text-2xl font-bold">{mockProfile.batches}</span>
+                      <span className="text-xs text-muted-foreground">Batches</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
+                      <Calendar className="h-8 w-8 text-primary mb-2" />
+                      <span className="text-2xl font-bold">{mockProfile.contests}</span>
+                      <span className="text-xs text-muted-foreground">Contests</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
+                      <FileText className="h-8 w-8 text-primary mb-2" />
+                      <span className="text-2xl font-bold">{mockProfile.tasks}</span>
+                      <span className="text-xs text-muted-foreground">Tasks</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
+                      <GraduationCap className="h-8 w-8 text-primary mb-2" />
+                      <span className="text-2xl font-bold">160</span>
+                      <span className="text-xs text-muted-foreground">Students</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
-                    <Calendar className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">{mockProfile.contests}</span>
-                    <span className="text-xs text-muted-foreground">Contests</span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
-                    <FileText className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">{mockProfile.tasks}</span>
-                    <span className="text-xs text-muted-foreground">Tasks</span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-card hover:shadow-sm transition-all">
-                    <GraduationCap className="h-8 w-8 text-primary mb-2" />
-                    <span className="text-2xl font-bold">160</span>
-                    <span className="text-xs text-muted-foreground">Students</span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Link to="/leaderboard" className="w-full">
-                  <Button variant="outline" className="w-full">
-                    View Leaderboard
-                  </Button>
-                </Link>
-              </CardFooter>
+                </CardContent>
+                <CardFooter>
+                  <Link to="/leaderboard" className="w-full">
+                    <Button variant="outline" className="w-full">
+                      View Leaderboard
+                    </Button>
+                  </Link>
+                </CardFooter>
             </Card>
           </div>
         </div>
       </main>
 
-      {/* Dialog for viewing students */}
       {openStudentDialog && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-background rounded-lg shadow-lg p-6 max-w-lg w-full relative">
@@ -783,7 +782,6 @@ function TeacherDashboard() {
         </div>
       )}
 
-      {/* Dialogs */}
       <CreateBatch
         open={openCreateBatch}
         onOpenChange={setOpenCreateBatch}
@@ -792,13 +790,12 @@ function TeacherDashboard() {
         method={method}
       />
       <CreateContest 
-      open={openCreateContest} 
-      onOpenChange={setOpenCreateContest} 
-      onSubmit={handleCreateContest}
-      batches={batches}
-      isCreated={setBatchCreated}
-      method={method}
-      
+        open={openCreateContest} 
+        onOpenChange={setOpenCreateContest} 
+        onSubmit={handleCreateContest}
+        batches={batches}
+        isCreated={setBatchCreated}
+        method={method}
       />
       <CreateTask
         open={openCreateTask}
@@ -808,6 +805,15 @@ function TeacherDashboard() {
         method={method}
         taskId={taskId}
         UpdateBatches={updateBatches}
+      />
+      {/* New Update Contest Dialog */}
+      <CreateContest 
+        open={openUpdateContest} 
+        onOpenChange={setOpenUpdateContest} 
+        onSubmit={handleUpdateContest}
+        batches={batches}
+        isCreated={setBatchCreated}
+        method="PUT" // Set method to PUT for updating
       />
     </div>
   )
