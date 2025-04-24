@@ -57,12 +57,13 @@ function Leaderboard() {
     if (!isValidToken) {
       navigate("/login")
     } else {
+      console.log("heloooo")
       fetchLeaderboardData(currentPage)
     }
   }, [currentPage, filters])
 
   const buildQueryParams = () => {
-    let params = `?page=${currentPage}&size=${pageSize}`
+    let params = `?page=${currentPage}`
 
     // Add sort parameters
     params += `&sort=${sortColumn},${sortDirection}`
@@ -215,9 +216,12 @@ function Leaderboard() {
   }
 
   const handleNextPage = () => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage(currentPage + 1)
+    console.log("page block")
+    if (currentPage <= totalPages - 1) {
+      console.log("page block")
+      
     }
+    setCurrentPage(currentPage + 1)
   }
 
   const handlePrevPage = () => {
