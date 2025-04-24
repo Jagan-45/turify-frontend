@@ -201,9 +201,8 @@ int main() {
           if (testCase.status.description === "Wrong Answer") {
             hasWrongAnswer = true;
             toast.error(`Test Case ${testCase.tcName}: Wrong Answer`);
-          } else if (testCase.status.description === "Accepted") {
-            toast.success(`Test Case ${testCase.tcName}: Accepted`);
-          }
+            return;
+          } 
         });
 
         if (!hasWrongAnswer) {
@@ -264,18 +263,17 @@ int main() {
           if (testCase.status.description === "Wrong Answer") {
             hasWrongAnswer = true;
             toast.error(`Test Case ${testCase.tcName}: Wrong Answer`);
-          } else if (testCase.status.description === "Accepted") {
-            toast.success(`Test Case ${testCase.tcName}: Accepted`);
-          }
+            return;
+          } 
         });
 
         if (!hasWrongAnswer) {
-          toast.success("All test cases passed successfully!");
+          toast.success("Test cases passed successfully! submit the problem to check all test cases");
         }
         
       } else {
         const errorData = await response.json()
-        toast.error(errorData.message || "Error submitting solution")
+        toast.error(errorData.message || "Error Running solution")
       }
       
     } catch (error) {
