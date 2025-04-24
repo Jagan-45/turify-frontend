@@ -250,7 +250,7 @@ function ContestPage() {
       return
     }
 
-    navigate(`/contest/problem/${id}/${problemId}`)
+   
   }
 
   
@@ -264,7 +264,8 @@ function ContestPage() {
   }
 
   
-  if (!localStorage.getItem(id)) {
+  if (localStorage.getItem(id)=="false") {
+    console.log(typeof localStorage.getItem(id))
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Card className="w-full max-w-md">
