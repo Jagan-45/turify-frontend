@@ -255,12 +255,29 @@ int main() {
       })
 
       if (response.ok) {
-        toast.success("Solution submitted successfully")
-        // navigate(`/contest/${contestId}`)
+        const responseData = await response.json();
+        const testCaseResults = responseData.data;
+
+        let hasWrongAnswer = false;
+
+        testCaseResults.forEach((testCase) => {
+          if (testCase.status.description === "Wrong Answer") {
+            hasWrongAnswer = true;
+            toast.error(`Test Case ${testCase.tcName}: Wrong Answer`);
+          } else if (testCase.status.description === "Accepted") {
+            toast.success(`Test Case ${testCase.tcName}: Accepted`);
+          }
+        });
+
+        if (!hasWrongAnswer) {
+          toast.success("All test cases passed successfully!");
+        }
+        
       } else {
         const errorData = await response.json()
         toast.error(errorData.message || "Error submitting solution")
       }
+      
     } catch (error) {
       console.error("Error submitting solution:", error)
       toast.error("Error submitting solution")
