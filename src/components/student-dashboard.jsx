@@ -38,7 +38,7 @@ function StudentDashboard() {
 
   const [activeTab, setActiveTab] = useState("contests")
   const [contestsTab, setContestsTab] = useState("ongoing")
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0])
   const [tasks, setTasks] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [completingTask, setCompletingTask] = useState(null)
@@ -56,7 +56,8 @@ function StudentDashboard() {
 
   // Function to format date for display
   const formatDate = (date) => {
-    return date.toLocaleDateString("en-US", {
+    const validDate = new Date(date)
+    return validDate.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
@@ -228,7 +229,9 @@ function StudentDashboard() {
         })
 
         active.forEach((contest) => {
+         
           localStorage.setItem(contest.contestID, false);
+          
         });
 
         setContests({
@@ -329,9 +332,7 @@ function StudentDashboard() {
     return <h1>Access Denied</h1>
   }
 
-  setTimeout(()=>{
-
-  },[1000])
+ 
 
   return (
     <div className="flex min-h-screen flex-col">

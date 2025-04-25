@@ -211,7 +211,7 @@ int main() {
         
       } else {
         const errorData = await response.json()
-        toast.error(errorData.message || "Error submitting solution")
+        toast.error(errorData.message || "Wrong solution")
       }
     } catch (error) {
       console.error("Error submitting solution:", error)
@@ -273,7 +273,7 @@ int main() {
         
       } else {
         const errorData = await response.json()
-        toast.error(errorData.message || "Error Running solution")
+        toast.error(errorData.message || "Wrong solution")
       }
       
     } catch (error) {

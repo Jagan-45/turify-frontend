@@ -92,8 +92,8 @@ function LoginForm() {
         if(localStorage.getItem("userProfile")){
           localStorage.removeItem("userProfile");
         }
-        fetchProfile();
-        setTimeout(()=>{},800)
+        await fetchProfile();
+        
         toast.success("Login successful!");
         if (userRole === "ROLE_STUDENT") {
           const username = values.mailId.split(".")[0];

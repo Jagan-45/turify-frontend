@@ -309,11 +309,11 @@ function TeacherDashboard() {
 
   const renderStatusBadge = (status) => {
     switch (status) {
-      case "Live":
+      case "ACTIVE":
         return <Badge className="bg-green-500 hover:bg-green-600">Live</Badge>
-      case "Scheduled":
+      case "SCHEDULED":
         return <Badge>Scheduled</Badge>
-      case "Completed":
+      case "CLOSED":
         return <Badge variant="outline">Completed</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
@@ -552,7 +552,7 @@ function TeacherDashboard() {
                                         : "text-muted-foreground"
                                       }`}
                                       >
-                                      {contest.status}
+                                      {renderStatusBadge(contest.status)}
                                       </span>
                                     </div>
                                     </div>
