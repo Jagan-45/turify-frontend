@@ -250,7 +250,7 @@ function ContestPage() {
       return
     }
 
-   
+    navigate(`/contest/problem/${id}/${problemId}`);
   }
 
   

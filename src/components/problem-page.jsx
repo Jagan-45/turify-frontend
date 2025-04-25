@@ -74,7 +74,7 @@ function ProblemPage() {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("contestToken")}`,
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
           },
         )
